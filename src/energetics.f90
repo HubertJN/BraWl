@@ -30,7 +30,8 @@ module energetics
       do k=1, setup%n_2
         do j=1, setup%n_1
           do i=1, setup%n_basis
-            energy = energy + setup%nbr_energy(config, i, j, k)
+            if (config(i,j,k,l) .eq. 0_int16) cycle
+            energy = energy + setup%nbr_energy(config, j, k, l)
           end do
         end do
       end do
@@ -55,22 +56,22 @@ module energetics
     energy=0.0_real64
     
     ! Compute where my neighbours are
-    ip1 = modulo(site_i, setup%n_1) + 1
-    im1 = modulo(site_i-2, setup%n_1) + 1
-    jp1 = modulo(site_j, setup%n_2) + 1
-    jm1 = modulo(site_j-2, setup%n_2) + 1
-    kp1 = modulo(site_k, setup%n_3) + 1
-    km1 = modulo(site_k-2, setup%n_3) + 1
+    ip1 = modulo(site_i, 2*setup%n_1) + 1
+    im1 = modulo(site_i-2, 2*setup%n_1) + 1
+    jp1 = modulo(site_j, 2*setup%n_2) + 1
+    jm1 = modulo(site_j-2, 2*setup%n_2) + 1
+    kp1 = modulo(site_k, 2*setup%n_3) + 1
+    km1 = modulo(site_k-2, 2*setup%n_3) + 1
       
     allocate(nbrs(8))
-    nbrs(1) = config(1,   ip1, site_j, site_k)
-    nbrs(2) = config(1,   im1, site_j, site_k)
-    nbrs(3) = config(1,site_i,    jp1, site_k)
-    nbrs(4) = config(1,site_i,    jm1, site_k)
-    nbrs(5) = config(1,site_i, site_j,    kp1)
-    nbrs(6) = config(1,site_i, site_j,    km1)
-    nbrs(7) = config(1,   ip1,    kp1,    jp1)
-    nbrs(8) = config(1,   im1,    km1,    jm1)
+    nbrs(1) = config(1, ip1, jp1, kp1)
+    nbrs(2) = config(1, ip1, jp1, km1)
+    nbrs(3) = config(1, ip1, jm1, kp1)
+    nbrs(4) = config(1, ip1, jm1, km1)
+    nbrs(5) = config(1, im1, jp1, kp1)
+    nbrs(6) = config(1, im1, jp1, km1)
+    nbrs(7) = config(1, im1, jm1, kp1)
+    nbrs(8) = config(1, im1, jm1, km1)
     do i=1, 8
       energy = energy + V_ex(species, nbrs(i), 1)
     end do
@@ -90,25 +91,25 @@ module energetics
     integer, intent(in) :: site_i, site_j, site_k
     integer(int16), intent(in) :: species
     integer(int16), allocatable, dimension(:) :: nbrs
-    integer :: i, ip1,im1,jp1,jm1,kp1,km1
+    integer :: i, ip2,im2,jp2,jm2,kp2,km2
 
     energy=0.0_real64
     
     ! Compute where my neighbours are
-    ip1 = modulo(site_i, setup%n_1) + 1
-    im1 = modulo(site_i-2, setup%n_1) + 1
-    jp1 = modulo(site_j, setup%n_2) + 1
-    jm1 = modulo(site_j-2, setup%n_2) + 1
-    kp1 = modulo(site_k, setup%n_3) + 1
-    km1 = modulo(site_k-2, setup%n_3) + 1
+    ip2 = modulo(site_i+1, 2*setup%n_1) + 1
+    im2 = modulo(site_i-3, 2*setup%n_1) + 1
+    jp2 = modulo(site_j+1, 2*setup%n_2) + 1
+    jm2 = modulo(site_j-3, 2*setup%n_2) + 1
+    kp2 = modulo(site_k+1, 2*setup%n_3) + 1
+    km2 = modulo(site_k-3, 2*setup%n_3) + 1
       
     allocate(nbrs(6))
-    nbrs(1) = config(1,   ip1,    jp1, site_k)
-    nbrs(2) = config(1,   im1,    jm1, site_k)
-    nbrs(3) = config(1,   ip1, site_j,    kp1)
-    nbrs(4) = config(1,   im1, site_j,    km1)
-    nbrs(5) = config(1,site_i,    jp1,    kp1)
-    nbrs(6) = config(1,site_i,    jm1,    km1)
+    nbrs(1) = config(1, ip2, site_j  , site_k  )
+    nbrs(2) = config(1, im2, site_j  , site_k  )
+    nbrs(3) = config(1, site_i  , jm2, site_k  )
+    nbrs(4) = config(1, site_i  , jp2, site_k  )
+    nbrs(5) = config(1, site_i  , site_j  , kp2)
+    nbrs(6) = config(1, site_i  , site_j  , km2)
     do i=1, 6
       energy = energy + V_ex(species, nbrs(i), 1)
     end do
@@ -859,8 +860,8 @@ module energetics
     species1 = config(idx1(1), idx1(2), idx1(3), idx1(4))
     species2 = config(idx2(1), idx2(2), idx2(3), idx2(4))
 
-    energy = setup%nbr_energy(config, idx1(1), idx1(2), idx1(3)) &
-           + setup%nbr_energy(config, idx2(1), idx2(2), idx2(3))
+    energy = setup%nbr_energy(config, idx1(2), idx1(3), idx1(4)) &
+           + setup%nbr_energy(config, idx2(2), idx2(3), idx2(4))
   end function pair_energy
 
 end module energetics
