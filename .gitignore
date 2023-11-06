@@ -1,0 +1,36 @@
+# Ignore compiled code
+*.o
+
+# Ignore output picture
+*.png
+
+# Ignore slurm outputs
+*.out
+
+# Ignore Fortran modules
+*.mod
+
+# Ignore netCDF output
+*.nc
+
+# Ignore netCDF output
+*.dat
+
+# Ignore pdfs
+*.pdf
+
+# Ignore executables
+*.exe
+
+# Ignore text files
+*.txt
+
+# Ignore input text files
+concentration_calculator_3d/inputs/*
+# but not my example input
+!concentration_calculator_3d/inputs/input.txt
+
+# Ignore input text files
+mc_bragg-williams_3d/inputs/*
+# but not my example input
+!mc_bragg-williams_3d/inputs/input.txt
