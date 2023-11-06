@@ -58,15 +58,15 @@ module analytics
     integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
     type(run_params) :: setup
     integer :: total_count
-    integer :: i,j,k,l
+    integer :: i,j,k,b
 
     total_count = 0
 
-    do l=1, setup%n_basis
+    do b=1, setup%n_basis
       do k=1, setup%n_3
         do j=1, setup%n_2
           do i=1, setup%n_1
-            if (config(i,j,k,l) .ne. 0_int16) then
+            if (config(b,i,j,k) .ne. 0_int16) then
               total_count = total_count + 1
             end if
           end do
@@ -214,12 +214,8 @@ module analytics
       do i_2=1, 2*setup%n_2
         do i_1=1, 2*setup%n_1
           do i_b=1, setup%n_basis
-            species_i = configuration(i_b,i_1, i_2, i_3)
-            r_densities(species_i, species_i, l, T) = &
-              r_densities(species_i, species_i, l, T) + 1.0_real64 
-            if (setup%lattice .eq. 'bcc') then
-              species_j = configuration(i_b, i_1+1, i_2, i_3)
-            end if
+          ! Cycle if this site is empty
+          if (configuration(i_b, i_1, i_2, i_3) .eq. 0_int16) cycle
             ! Loop over neighbouring sites, accounting for
             ! P.B.C.s
             do jj_3=i_3-4, i_3+4, 1
@@ -229,6 +225,7 @@ module analytics
                 do jj_1=i_1-4, i_1+4, 1
                   j_1 = modulo(jj_1-1, 2*setup%n_1) + 1
                   do j_b=1, setup%n_basis
+                    if (configuration(j_b, j_1, j_2, j_3) .eq. 0_int16) cycle
                     ! Compute the distance to this site, accounting
                     ! for PBCs
                     d_x = real(i_1-j_1)
