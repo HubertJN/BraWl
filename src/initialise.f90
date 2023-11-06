@@ -130,7 +130,7 @@ module initialise
     ! Allocate space for exchange parameters
     allocate(V_ex(setup%n_species, setup%n_species, setup%n_shells))
     ! Allocate array for storing configuration
-    allocate(config(setup%n_basis, setup%n_1, setup%n_2, setup%n_3))
+    allocate(config(setup%n_basis, 2*setup%n_1, 2*setup%n_2, 2*setup%n_3))
   end subroutine initialise_local_arrays
 
   !-----------------------------------!
@@ -161,14 +161,21 @@ module initialise
     type(run_params) :: setup
     integer(int16), allocatable, dimension(:,:,:,:) :: config
     integer(int32), dimension(4) :: grid_dims
-    integer :: i, j, k, l, n_sites
-    integer(int16) :: m, n_species
+    integer :: i, j, k, n_sites, idx
+    integer(int16) :: l, n_species
     real(real64) :: rand
     integer(int32), dimension(setup%n_species) :: species_count, check
 
     check = 0
-
-    n_sites = setup%n_1*setup%n_2*setup%n_3*setup%n_basis
+    if (setup%lattice == 'simple_cubic') then
+      n_sites = setup%n_1*setup%n_2*setup%n_3*8
+    else if (setup%lattice == 'bcc') then
+      n_sites = setup%n_1*setup%n_2*setup%n_3*2
+    else if (setup%lattice == 'fcc') then
+      n_sites = setup%n_1*setup%n_2*setup%n_3*4
+    else
+      stop 'Lattice type not supported!'
+    end if
 
     ! Make sure my arrays have been allocated and bomb if not
     if (.not. allocated(config)) then
@@ -188,25 +195,26 @@ module initialise
     call set_concentrations(setup)
 
     ! Set configuration to be zero
-    config = 0_int32
+    config = 0_int16
 
     ! Set up the lattice
-    ! Loop over lattice sites
-    do l=1, grid_dims(4)
-      do k=1, grid_dims(3)
-        do j=1, grid_dims(2)
-          do i=1, grid_dims(1)
-            do while (config(i,j,k,l) .eq. 0_int32)
+    ! Deal with simple cubic case
+    if(trim(setup%lattice) == 'simple_cubic') then
+      ! Loop over lattice sites
+      do k=1, grid_dims(4)
+        do j=1, grid_dims(3)
+          do i=1, grid_dims(2)
+            do while (config(1,i,j,k) .eq. 0_int32)
               ! Get a random number
               rand = genrand()
               ! Loop over species
-              do m=1, n_species
+              do l=1, n_species
                 ! Decide which species to sit on that site
-                if ((rand .ge. sum(setup%species_cs(0:(m-1)))) .and. &
-                    (rand .le. sum(setup%species_cs(0:m)))) then
-                  if (check(m) .lt. species_count(m)) then
-                    config(i,j,k,l) = m
-                    check(m) = check(m) + 1
+                if ((rand .ge. sum(setup%species_cs(0:(l-1)))) .and. &
+                    (rand .le. sum(setup%species_cs(0:l)))) then
+                  if (check(l) .lt. species_count(l)) then
+                    config(1,i,j,k) = l
+                    check(l) = check(l) + 1
                   end if
                 end if
               end do ! Species
@@ -214,8 +222,78 @@ module initialise
           end do ! i
         end do ! j
       end do ! k
-    end do ! l
+    ! Deal with bcc case
+    else if (trim(setup%lattice) == 'bcc') then
+      ! Loop over lattice sites
+      do k=1, grid_dims(4)
+        do j=1, grid_dims(3)/2
+          do i=1, grid_dims(2)/2
+            do while (config(1,2*i-modulo(k,2),2*j-modulo(k,2),k) .eq. 0_int32)
+              ! Get a random number
+              rand = genrand()
+              ! Loop over species
+              do l=1, n_species
+                ! Decide which species to sit on that site
+                if ((rand .ge. sum(setup%species_cs(0:(l-1)))) .and. &
+                    (rand .le. sum(setup%species_cs(0:l)))) then
+                  if (check(l) .lt. species_count(l)) then
+                    if( modulo(k, 2) == 1) then
+                      config(1,2*i-1, 2*j-1,k) = l
+                    else
+                      config(1,2*i, 2*j,k) = l
+                    end if
+                    check(l) = check(l) + 1
+                  end if
+                end if
+              end do ! Species
+            end do ! While
+          end do ! i
+        end do ! j
+      end do ! k
+    ! Deal with fcc case
+    ! Work in progress
+    else if (trim(setup%lattice) == 'fcc') then
+      ! Loop over lattice sites
+      do k=1, grid_dims(4)
+        do j=1, grid_dims(3)
+          do i=1, grid_dims(2)/2
+            idx = 2*i - modulo(k,2)*modulo(j,2) - modulo(k+1,2)*modulo(j+1,2)
+            do while (config(1, idx,j,k) .eq. 0_int32)
+              ! Get a random number
+              rand = genrand()
+              ! Loop over species
+              do l=1, n_species
+                ! Decide which species to sit on that site
+                if ((rand .ge. sum(setup%species_cs(0:(l-1)))) .and. &
+                    (rand .le. sum(setup%species_cs(0:l)))) then
+                  if (check(l) .lt. species_count(l)) then
+                    if( modulo(k, 2) == 1) then
+                      if( modulo(j,2) == 1) then
+                        config(1, 2*i-1, j, k) = l
+                      else
+                        config(1, 2*i, j, k) = l
+                      end if
+                    else
+                      if( modulo(j,2) == 1) then
+                        config(1, 2*i, j, k) = l
+                      else
+                        config(1, 2*i-1, j, k) = l
+                      end if
+                    end if
+                    check(l) = check(l) + 1
+                  end if
+                end if
+              end do ! Species
+            end do ! While
+          end do ! i
+        end do ! j
+      end do ! k
+    else
+      print*, 'Lattice type: ', setup%lattice, ' not yet implemented'
+      stop
+    end if
 
+  print*, new_line('a'), 'Finished initial setup', new_line('a')
   end subroutine initial_setup
 
   subroutine set_concentrations(parameters)
