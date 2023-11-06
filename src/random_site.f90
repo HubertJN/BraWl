@@ -23,29 +23,29 @@ module random_site
 
   ! Array for neighbours on the bcc lattice
   integer, parameter, dimension(3,8) :: &
-  bcc_nbrs = reshape((/ -1, -1, -1, &
-                        -1,  0,  0, &
-                         0, -1,  0, &
-                         0,  0, -1, &
-                         0,  0,  1, &
-                         0,  1,  0, &
-                         1,  0,  0, &
-                         1,  1,  1 /), (/3, 8/))
+  bcc_nbrs = reshape((/  1,  1,  1, &
+                         1,  1, -1, &
+                         1, -1,  1, &
+                         1, -1, -1, &
+                        -1,  1,  1, &
+                        -1,  1, -1, &
+                        -1, -1,  1, &
+                        -1, -1, -1 /), (/3, 8/))
 
   ! Array for neighbours on the fcc lattice
   integer, parameter, dimension(3,12) :: &
-  fcc_nbrs = reshape((/ -1,  0,  0, &
-                        -1,  0,  1, &
-                        -1,  1,  0, &
-                         0, -1,  0, &
-                         0, -1,  1, &
-                         0,  0, -1, &
-                         0,  0,  1, &
+  fcc_nbrs = reshape((/  0,  1,  1, &
                          0,  1, -1, &
-                         0,  1,  0, &
+                         0, -1,  1, &
+                         0, -1, -1, &
+                         1,  1,  0, &
                          1, -1,  0, &
+                         1,  0,  1, &
                          1,  0, -1, &
-                         1,  0,  0 /), (/3, 12/))
+                        -1,  1,  0, &
+                        -1, -1,  0, &
+                        -1,  0,  1, &
+                        -1,  0, -1 /), (/3, 12/))
   contains
 
   !-------------------------------------------------!
@@ -55,9 +55,9 @@ module random_site
     class(run_params), intent(in) :: setup
     integer, dimension(4) :: site
     site(1) = 1
-    site(2) = floor(genrand()*real(setup%n_1)) +1
-    site(3) = floor(genrand()*real(setup%n_2)) +1
-    site(4) = floor(genrand()*real(setup%n_3)) +1
+    site(2) = floor(genrand()*2.0_real64*real(setup%n_1)) +1
+    site(3) = floor(genrand()*2.0_real64*real(setup%n_2)) +1
+    site(4) = floor(genrand()*2.0_real64*real(setup%n_3)) +1
   end function simple_cubic_random_site
   
   !------------------------------------------------------!
@@ -77,9 +77,9 @@ module random_site
 
     ! Wrap coordinates into box
     nbr(1) = 1
-    nbr(2) = modulo(nbr(1)-1, setup%n_1) + 1
-    nbr(3) = modulo(nbr(2)-1, setup%n_2) + 1
-    nbr(4) = modulo(nbr(3)-1, setup%n_3) + 1
+    nbr(2) = modulo(nbr(2)-1, 2*setup%n_1) + 1
+    nbr(3) = modulo(nbr(3)-1, 2*setup%n_2) + 1
+    nbr(4) = modulo(nbr(4)-1, 2*setup%n_3) + 1
   end function simple_cubic_random_nbr
   
   !--------------------------------------------------!
@@ -89,9 +89,11 @@ module random_site
     class(run_params), intent(in) :: setup
     integer, dimension(4) :: site
     site(1) = 1
-    site(2) = floor(genrand()*real(setup%n_1)) +1
-    site(3) = floor(genrand()*real(setup%n_2)) +1
-    site(4) = floor(genrand()*real(setup%n_3)) +1
+    site(4) = floor(2.0_real64*genrand()*real(setup%n_3, real64)) +1
+    site(2) = 2 * floor(genrand()*real(setup%n_1, real64)) &
+                + 2 - modulo(site(4), 2)
+    site(3) = 2 * floor(genrand()*real(setup%n_2, real64)) &
+                + 2 - modulo(site(4), 2)
   end function bcc_random_site
   
   !-------------------------------------------------------!
@@ -111,9 +113,9 @@ module random_site
 
     ! Wrap coordinates into box
     nbr(1) = 1
-    nbr(2) = modulo(nbr(1)-1, setup%n_1) + 1
-    nbr(3) = modulo(nbr(2)-1, setup%n_2) + 1
-    nbr(4) = modulo(nbr(3)-1, setup%n_3) + 1
+    nbr(2) = modulo(nbr(2)-1, 2*setup%n_1) + 1
+    nbr(3) = modulo(nbr(3)-1, 2*setup%n_2) + 1
+    nbr(4) = modulo(nbr(4)-1, 2*setup%n_3) + 1
   end function bcc_random_nbr
   
   !--------------------------------------------------!
@@ -123,9 +125,10 @@ module random_site
     class(run_params), intent(in) :: setup
     integer, dimension(4) :: site
     site(1) = 1
-    site(2) = floor(genrand()*real(setup%n_1)) +1
-    site(3) = floor(genrand()*real(setup%n_2)) +1
-    site(4) = floor(genrand()*real(setup%n_3)) +1
+    site(4) = floor(2.0_real64*genrand()*real(setup%n_3, real64)) + 1
+    site(2) = floor(2.0_real64*genrand()*real(setup%n_1, real64)) + 1
+    site(3) = 2 * floor(genrand()*real(setup%n_2, real64)) + 1 &
+                    + modulo((site(1)-modulo(site(4),2)), 2)
   end function fcc_random_site
 
   !-------------------------------------------------------!
@@ -145,9 +148,9 @@ module random_site
 
     ! Wrap coordinates into box
     nbr(1) = 1
-    nbr(2) = modulo(nbr(1)-1, setup%n_1) + 1
-    nbr(3) = modulo(nbr(2)-1, setup%n_2) + 1
-    nbr(4) = modulo(nbr(3)-1, setup%n_3) + 1
+    nbr(2) = modulo(nbr(2)-1, 2*setup%n_1) + 1
+    nbr(3) = modulo(nbr(3)-1, 2*setup%n_2) + 1
+    nbr(4) = modulo(nbr(4)-1, 2*setup%n_3) + 1
   end function fcc_random_nbr
 
   !-----------------------------------------------!
