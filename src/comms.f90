@@ -1,3 +1,10 @@
+!----------------------------------------------------------------------!
+! comms.f90                                                            !
+!                                                                      !
+! Module for handling calls to MPI library (used for parallelisation). !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 module comms
 
   use mpi
@@ -5,111 +12,123 @@ module comms
   use mpi_shared_data
 
   implicit none
+
   save
 
-  !> total number of processes
+  ! total number of processes
   integer :: p
-  !> rank of my processor
+
+  ! rank of my processor
   integer :: my_rank
-  !> start and end times for mpi
+
+  ! start and end times for mpi
   real(real64) :: t1, t2
-  !> mpi status_info
+
+  ! mpi status_info
   integer, dimension(mpi_status_size) :: status_info
-  !> error variables
+
+  ! error variables
   integer :: ierr
-  !> our communicator
+
+  ! our communicator
   integer :: cart_comm
-  !> this processor coordinates
+
+  ! this processor coordinates
   integer, dimension(3) :: my_rank_coords
-  !> neighbouring ranks
+
+  ! neighbouring ranks
   integer, dimension(6) :: my_rank_neighbours
   integer :: east, west, north, south, up, down
 
   contains
 
-  !--------------------------------------------------------
-  !> @author
-  !> c. woodgate
-  !
-  ! description:
-  !> comms_initialise sets up the mpi communicator
-  !
-  ! revision history:
-  ! todo_dd_mm_yyyy -
-  !
-  !> @param[in] error
-  !--------------------------------------------------------
+
+  !--------------------------------------------------------------------!
+  ! Routine to initialise MPI                                          !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine comms_initialise()
 
-    !> initialise mpi
+    ! initialise mpi
     call mpi_init(ierr)
 
-    !> set up the size and rank of the communicator
+    ! set up the size and rank of the communicator
     call mpi_comm_rank(mpi_comm_world,my_rank,ierr)
     call mpi_comm_size(mpi_comm_world,p,ierr)
 
-    !> start the clock
+    ! start the clock
     t1 = mpi_wtime()
 
   end subroutine comms_initialise
 
+  !--------------------------------------------------------------------!
+  ! Routine to put in a call to MPI_BARRIER (wait for all processes).  !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine comms_wait()
 
-  call mpi_barrier(mpi_comm_world, ierr)
+    ! Call MPI_BARRIER
+    call mpi_barrier(mpi_comm_world, ierr)
 
   end subroutine comms_wait
 
+  !--------------------------------------------------------------------!
+  ! Routine to reduce results of an (MPI) ensemble of simulations and  !
+  ! perform averaging.                                                 !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine comms_reduce_results(setup)
 
+    ! Input contains information about simulation
     type(run_params), intent(in) :: setup
 
-    call mpi_reduce(energies_of_T, av_energies_of_T, setup%T_steps,         &
+    ! Bring all simulation energy arrays, <E>(T), to rank 0
+    ! and sum them.
+    call mpi_reduce(energies_of_T, av_energies_of_T, setup%T_steps,    &
                     MPI_DOUBLE, MPI_SUM, 0, mpi_comm_world, ierr)
 
+    ! Divide by the number of simulations to get the average
     av_energies_of_T = av_energies_of_T/real(p)
   
-    call mpi_reduce(C_of_T, av_C_of_T, setup%T_steps,                       &
-                    MPI_DOUBLE_PRECISION, MPI_SUM, 0, mpi_comm_world, ierr)
-  
+    ! Do the same for the heat capacity data
+    call mpi_reduce(C_of_T, av_C_of_T, setup%T_steps,                  &
+                 MPI_DOUBLE_PRECISION, MPI_SUM, 0, mpi_comm_world, ierr)
     av_C_of_T = av_C_of_T/real(p)
   
-    call mpi_reduce(acceptance_of_T, av_acceptance_of_T, setup%T_steps,     &
-                    MPI_DOUBLE_PRECISION, MPI_SUM, 0, mpi_comm_world, ierr)
-  
+    ! Do the same with the acceptance rates
+    call mpi_reduce(acceptance_of_T, av_acceptance_of_T, setup%T_steps,&
+                 MPI_DOUBLE_PRECISION, MPI_SUM, 0, mpi_comm_world, ierr)
     av_acceptance_of_T = av_acceptance_of_T/real(p)
   
-    call mpi_reduce(rho_of_T, av_rho_of_T,                                  &
-                    setup%T_steps*(setup%n_species**2)*setup%radial_d,      &
-                    MPI_DOUBLE_PRECISION, MPI_SUM, 0, mpi_comm_world, ierr)
-  
+    ! Do the same with the radial densities
+    call mpi_reduce(rho_of_T, av_rho_of_T,                             &
+                    setup%T_steps*(setup%n_species**2)*setup%radial_d, &
+                    MPI_DOUBLE_PRECISION, MPI_SUM, 0, mpi_comm_world,  &
+                    ierr)
     av_rho_of_T = av_rho_of_T/real(p)
-  
 
   end subroutine comms_reduce_results
 
-  !--------------------------------------------------------
-  !> @author
-  !> c. woodgate
-  !
-  ! description:
-  !> comms_finalize cleans up the mpi communicator
-  !
-  ! revision history:
-  ! todo_dd_mm_yyyy -
-  !
-  !> @param[in] error
-  !--------------------------------------------------------
+  !--------------------------------------------------------------------!
+  ! Routine to finalise MPI and display time taken.                    !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine comms_finalise()
 
-    !> stop the clock
+    ! stop the clock
     t2 = mpi_wtime()
 
-    !> print time taken
+    ! print time taken
     if(my_rank .eq. 0) then
-      print '(a,f0.2,a)', "total time elapsed for mpi run is ", t2-t1, " seconds."
+      print '(a,f0.2,a)', "Total time elapsed for mpi run is ", t2-t1, &
+                          " seconds."
     end if
 
-    !> clean up mpi
+    ! clean up mpi
     call mpi_finalize(ierr)
 
   end subroutine comms_finalise
