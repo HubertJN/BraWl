@@ -9,6 +9,7 @@ module analytics
 
   use kinds
   use mpi_shared_data
+  use io
   use display
   
   implicit none

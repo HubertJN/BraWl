@@ -63,7 +63,7 @@ endif
 LD=$(FC)
 EXE=alloy_mc.exe
 
-SRCFILES=mt19937ar.c kinds.f90 mpi_shared_data.f90 comms.f90 write_netcdf.f90 write_xyz.f90\
+SRCFILES=mt19937ar.c kinds.f90 mpi_shared_data.f90 io.f90 comms.f90 write_netcdf.f90 write_xyz.f90\
 	write_diagnostics.f90 command_line.f90 c_functions.f90 display.f90\
         energetics.f90 analytics.f90 random_site.f90 metropolis.f90\
 	initialise.f90 model_run.f90 mpi_main.f90
@@ -104,6 +104,7 @@ $(OBJFILES): | $(OBJDIR)
 # Dependencies #
 ################
 mpi_shared_data.o: kinds.o
+io.o: kinds.o mpi_shared_data.o
 write_netcdf.o: kinds.o mpi_shared_data.o
 write_xyz.o: mpi_shared_data.o kinds.o analytics.o
 write_diagnostics.o: mpi_shared_data.o kinds.o analytics.o

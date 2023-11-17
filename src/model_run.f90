@@ -8,6 +8,7 @@ module model_run
   
   use initialise
   use mpi_shared_data
+  use io
   use comms
   use kinds
   use c_functions
