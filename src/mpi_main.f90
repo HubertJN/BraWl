@@ -10,6 +10,7 @@ program main
   use comms
   use model_run
   use mpi_shared_data
+  use io
   use kinds
   use c_functions
   use write_netcdf
@@ -44,22 +45,32 @@ program main
   if(my_rank == 0) call execute_command_line('mkdir -p grids')
   if(my_rank == 0) call execute_command_line('mkdir -p diagnostics')
   if(my_rank == 0) call execute_command_line('mkdir -p radial_densities')
+  if(my_rank == 0) call write_info('s')
 
-  if(.not. get_arg('control', control)) then
-    if (my_rank == 0) then
-      print*, 'Could not parse name of control file'
-      print*, 'Defaulting to searching for "input.txt"'
-      print*, ' '
-    end if
-    control = 'input.txt'
+  if(my_rank == 0) then
+    write(6,'(22("-"),x,"Parsing name of input file",x,22("-"),/)')
   end if
-
-  if (my_rank .eq. 0) call print_parse()
+    if(.not. get_arg('control', control)) then
+      if (my_rank == 0) then
+        print*, 'Input file not specified with "control=<name>"'
+        print*, 'Defaulting to searching for "input.txt"'
+        print*, ' '
+      end if
+      control = 'input.txt'
+    else
+      if (my_rank == 0) then
+        print*, 'Input file name is: ', control
+        print*, ' '
+      end if
+    end if
 
   ! Read the control file
-  call read_control_file(control, setup)
+  call read_control_file(control, setup, my_rank)
 
-  if (my_rank .eq. 0) call echo_control_file(setup)
+  if(my_rank == 0) then
+    call echo_control_file(setup)
+    write(6,'(/,20("-"),x,"Parsed input file successfully",x,20("-"),/)')
+  end if
 
   ! Initialise some global arrays
   call initialise_global_arrays(setup)
@@ -70,28 +81,44 @@ program main
   ! Initialise some global arrays
   call initialise_local_arrays(setup)
 
+  if(my_rank == 0) then
+    write(6,'(15("-"),x,"Reading atom-atom interaction parameters",x,15("-"),/)')
+  end if
+
   ! Read the exchange coefficients matrix
   call read_exchange(setup)
-
-  ! Setup the concentrations array
-  call set_concentrations(setup)
-
-  ! Initialise the prng
-  seed = f90_init_genrand(seedtime, int(my_rank, kind=C_INT))
-
-  call comms_wait()
-  print*, 'Thread ', my_rank, ' has seed ', seed
-  call comms_wait()
 
   if (my_rank .eq. 0) then
     ! Print it out as a sanity check for user
     call pretty_print_exchange(setup)
   end if
 
+  if(my_rank == 0) then
+    write(6,'(72("-"),/)')
+  end if
+
+  ! Setup the concentrations array
+  call set_concentrations(setup)
+
+  if(my_rank == 0) then
+    write(6,'(17("-"),x,"Initialising random number generators",x,16("-"),/)')
+  end if
+
+  ! Initialise the prng
+  seed = f90_init_genrand(seedtime, int(my_rank, kind=C_INT))
+
+  call comms_wait()
+  print*, 'Thread ', my_rank, ' has seed ', seed
+  call flush(6)
+
+  call comms_wait()
+
+  if(my_rank == 0) then
+    write(6,'(/,72("-"),/)')
+  end if
+
   if (my_rank .eq. 0) then
-    print*, '##########################'
-    print*, '# Commencing Simulation! #'
-    print*, '##########################'
+    write(6,'(24("-"),x,"Commencing Simulation!",x,24("-"))')
   end if
 
   call run_model(setup, my_rank)
@@ -99,9 +126,8 @@ program main
   call comms_reduce_results(setup)
 
   if (my_rank .eq. 0) then
-    print*, '##########################'
-    print*, '#  Simulation Complete!  #'
-    print*, '##########################', new_line('a')
+    write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
+
 
     ! Write energy diagnostics
     call diagnostics_writer('diagnostics/av_energy_diagnostics.dat', temperature, &
@@ -117,7 +143,9 @@ program main
   call global_clean_up()
 
   ! Clean up
-  call local_clean_up()
+  call local_clean_up(setup)
+
+  if(my_rank == 0) call write_info('f')
 
   ! Start MPI
   call comms_finalise()
