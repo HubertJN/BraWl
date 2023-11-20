@@ -8,6 +8,7 @@ module display
 
   use kinds
   use mpi_shared_data
+  use io
   
   implicit none
 
@@ -20,16 +21,22 @@ module display
     integer :: i,j,k
     type(run_params), intent(in) :: setup
 
-    write(*,'(a)') ''
-    write(*,'(a, a)') 'V_ij to be used in calculation:'
+    write(*,"(x,'V_ij to be used in calculation (mRy):',/)") 
 
     do i=1, setup%n_shells
-      write(*,'(a, I2, a)') 'Interchange interaction on shell: ', i
+      write(*,'(a, I2, a, a)') ' Interchange interaction on shell: ', i, new_line('a')
+        write(*, '(A)', advance='no') ' '
       do j=1, setup%n_species
+        write(*, '(A, A)', advance='no') '          ', setup%species_names(j)
+      end do
+        write(*, '(A)', advance='yes') ''
+      do j=1, setup%n_species
+        write(*, '(A, A)', advance='no') ' ', setup%species_names(j)
         do k=1, setup%n_species
-          write(*, '(F9.6, A)', advance='no') V_ex(k,j,i), '  '
+          write(*, '(A, F8.3, A)', advance='no') '  ', 1000*V_ex(k,j,i), '  '
           if (k .eq. setup%n_species) write(*,'(a)') ''
         end do
+        if (j .eq. setup%n_species) write(*,'(a)') ''
       end do
     end do
     write(*,'(a)') ''
