@@ -168,7 +168,7 @@ module analytics
       if (abs(all_shells(i)-all_shells(i+1)) .lt. 1e-3_real64) cycle
       shells(l) = all_shells(i)
       l=l+1
-      if (l .gt. setup%radial_d) exit
+      if (l .gt. setup%wc_range) exit
     end do
 
     ! Deallocate the array of all distances
