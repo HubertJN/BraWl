@@ -106,7 +106,7 @@ module comms
   
     ! Do the same with the radial densities
     call mpi_reduce(rho_of_T, av_rho_of_T,                             &
-                    setup%T_steps*(setup%n_species**2)*setup%radial_d, &
+                    setup%T_steps*(setup%n_species**2)*setup%wc_range, &
                     MPI_DOUBLE_PRECISION, MPI_SUM, 0, mpi_comm_world,  &
                     ierr)
     av_rho_of_T = av_rho_of_T/real(p)
@@ -123,11 +123,11 @@ module comms
     ! stop the clock
     t2 = mpi_wtime()
 
-    ! print time taken
-    if(my_rank .eq. 0) then
-      print '(a,f0.2,a)', "Total time elapsed for mpi run is ", t2-t1, &
-                          " seconds."
-    end if
+!    ! print time taken
+!    if(my_rank .eq. 0) then
+!      print '(a,f0.2,a)', "Total time elapsed for mpi run is ", t2-t1, &
+!                          " seconds."
+!    end if
 
     ! clean up mpi
     call mpi_finalize(ierr)
