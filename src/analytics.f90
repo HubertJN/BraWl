@@ -8,7 +8,7 @@
 module analytics
 
   use kinds
-  use mpi_shared_data
+  use shared_data
   use io
   use display
   
@@ -134,7 +134,8 @@ module analytics
   !                                                                    !
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
-  subroutine lattice_shells(setup, shells)
+  subroutine lattice_shells(setup, shells, configuration)
+    integer(int16), dimension(:,:,:,:), allocatable :: configuration
     type(run_params), intent(in) :: setup
     integer :: i,j,k,b,l
     real(real64) :: dist
@@ -143,23 +144,40 @@ module analytics
 
     ! Factor of eight to account for the fact that simulation
     ! doubles number of cells in each direction to build lattice
-    allocate(all_shells(setup%n_1*setup%n_2*setup%n_3*setup%n_basis))
+    allocate(all_shells(8*setup%n_1*setup%n_2*setup%n_3*setup%n_basis))
 
     all_shells = 0.0_real64
     shells = 0.0_real64
 
     l = 1
 
+!    ! Loop over all lattice sites
+!    do k=1, 2*setup%n_3
+!      do j=1, 2*setup%n_2
+!        do i=1, 2*setup%n_1
+!          do b=1, setup%n_basis
+!            r_vec = real(i)*setup%lattice_vectors(:,1) + &
+!                    real(j)*setup%lattice_vectors(:,2) + &
+!                    real(k)*setup%lattice_vectors(:,3) + &
+!                    real(b)*setup%basis_vectors
+!            dist = norm2(r_vec)
+!            all_shells(l) = dist
+!            l=l+1
+!         end do
+!        end do
+!      end do
+!    end do
+
     ! Loop over all lattice sites
-    do k=1, setup%n_3
-      do j=1, setup%n_2
-        do i=1, setup%n_1
+    do k=1, 2*setup%n_3
+      do j=1, 2*setup%n_2
+        do i=1, 2*setup%n_1
           do b=1, setup%n_basis
-            r_vec = real(i)*setup%lattice_vectors(:,1) + &
-                    real(j)*setup%lattice_vectors(:,2) + &
-                    real(k)*setup%lattice_vectors(:,3) + &
-                    real(b)*setup%basis_vectors
-            dist = norm2(r_vec)
+            ! Cycle if this lattice site is empty
+            if (configuration(b,i,j,k) .eq. 0_int16) cycle
+            dist     = sqrt(real((k-1)**2) + &
+                            real((j-1)**2) + &
+                            real((i-1)**2))
             all_shells(l) = dist
             l=l+1
          end do
@@ -209,9 +227,9 @@ module analytics
     particle_counts = 0
 
     ! Count how many of each species there are
-    do i_3=1, setup%n_3
-      do i_2=1, setup%n_2
-        do i_1=1, setup%n_1
+    do i_3=1, setup%n_3*2
+      do i_2=1, setup%n_2*2
+        do i_1=1, setup%n_1*2
           do i_b=1, setup%n_basis
             do l=1, setup%n_species
               if (configuration(i_b, i_1, i_2, i_3) .eq. int(l, kind=int16)) then
@@ -222,10 +240,9 @@ module analytics
         end do
       end do
     end do
-    
 
     ! Loop over all lattice sites
-    do i_3=1, setup%n_3
+    do i_3=1, 2*setup%n_3
       do i_2=1, 2*setup%n_2
         do i_1=1, 2*setup%n_1
           do i_b=1, setup%n_basis
