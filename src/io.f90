@@ -8,7 +8,7 @@
 module io
 
   use kinds
-  use mpi_shared_data
+  use shared_data
   use command_line
   use display
   
@@ -88,6 +88,7 @@ module io
     parameters%nbr_swap = .false.
     parameters%sample_steps = 1000
     parameters%burn_in = .false.
+    parameters%dump_grids = .false.
     parameters%burn_in_steps = 1000
 
     inquire(file=trim(filename), exist=exists)
@@ -159,6 +160,8 @@ module io
           read(buffer, *, iostat=ios) parameters%delta_T
         case ('T_steps')  
           read(buffer, *, iostat=ios) parameters%T_steps
+        case ('dump_grids')  
+          read(buffer, *, iostat=ios) parameters%dump_grids
         case ('lro')  
           read(buffer, *, iostat=ios) parameters%lro
         case ('nbr_swap')  

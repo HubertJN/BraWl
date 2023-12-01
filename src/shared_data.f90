@@ -5,7 +5,7 @@
 !                                                                      !
 ! C. D. Woodgate,  Warwick                                        2023 !
 !----------------------------------------------------------------------!
-module mpi_shared_data
+module shared_data
 
   use kinds
   
@@ -170,4 +170,4 @@ module mpi_shared_data
   real(real64), dimension(:,:,:), allocatable :: V_ex
   real(real64), allocatable, dimension(:) :: shells
   
-end module mpi_shared_data
+end module shared_data

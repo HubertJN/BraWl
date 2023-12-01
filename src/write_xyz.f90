@@ -8,7 +8,7 @@
 module write_xyz
 
   use kinds
-  use mpi_shared_data
+  use shared_data
   use analytics
 
   implicit none

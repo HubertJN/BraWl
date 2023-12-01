@@ -9,7 +9,7 @@ module write_netcdf
 
   use kinds
   use netcdf
-  use mpi_shared_data
+  use shared_data
 
   implicit none
 

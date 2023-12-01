@@ -7,7 +7,7 @@ program main
   
   use initialise
   use comms
-  use mpi_shared_data
+  use shared_data
   use metropolis
   use io
   use kinds

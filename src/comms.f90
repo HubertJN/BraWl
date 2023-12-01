@@ -9,7 +9,7 @@ module comms
 
   use mpi
   use kinds
-  use mpi_shared_data
+  use shared_data
   use io
 
   implicit none

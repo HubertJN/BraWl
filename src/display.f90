@@ -8,7 +8,7 @@
 module display
 
   use kinds
-  use mpi_shared_data
+  use shared_data
   
   implicit none
 
