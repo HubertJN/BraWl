@@ -7,7 +7,7 @@
 module random_site
 
   use kinds
-  use mpi_shared_data
+  use shared_data
   use c_functions
   
   implicit none
@@ -128,7 +128,7 @@ module random_site
     site(4) = floor(2.0_real64*genrand()*real(setup%n_3, real64)) + 1
     site(2) = floor(2.0_real64*genrand()*real(setup%n_1, real64)) + 1
     site(3) = 2 * floor(genrand()*real(setup%n_2, real64)) + 1 &
-                    + modulo((site(1)-modulo(site(4),2)), 2)
+                    + modulo((site(2)-modulo(site(4),2)), 2)
   end function fcc_random_site
 
   !-------------------------------------------------------!
