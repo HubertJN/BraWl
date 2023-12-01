@@ -1,11 +1,12 @@
-!----------------------------------------------------------!
-! Module to interface with some routines written in C,     !
-! including Mersenne Twister PRNG and a routine to produce !
-! images of the state of the simulation.                   !
-!                                                          !
-! C. Woodgate                                         2021 !
-!----------------------------------------------------------!
-
+!----------------------------------------------------------------------!
+! c_functions.f90                                                      !
+!                                                                      !
+! Module to interface with Mersenne Twiseter PNRG. (Used to also       !
+! interface with some other routines that have now been ported to      !
+! Fortran                                                              !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 module c_functions
   use iso_c_binding
 
