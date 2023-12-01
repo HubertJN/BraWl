@@ -43,7 +43,6 @@ module comms
 
   contains
 
-
   !--------------------------------------------------------------------!
   ! Routine to initialise MPI                                          !
   !                                                                    !
