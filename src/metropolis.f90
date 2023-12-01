@@ -10,7 +10,7 @@ module metropolis
 
   use initialise
   use kinds
-  use mpi_shared_data
+  use shared_data
   use io
   use comms
   use c_functions
@@ -59,8 +59,8 @@ module metropolis
     ! Set up the lattice
     call initial_setup(setup, config)
 
-    call lattice_shells(setup, shells)
-  
+    call lattice_shells(setup, shells, config)
+
     n_save=floor(real(setup%mc_steps)/real(setup%sample_steps))
     div_steps = setup%mc_steps/1000
   
@@ -176,6 +176,18 @@ module metropolis
     ! Write the radial densities to file
     call ncdf_radial_density_writer(radial_file, rho_of_T, &
                                   shells, temperature, energies_of_T, setup)
+
+    ! Average results across the simulation
+    call comms_reduce_results(setup)
+
+    if (my_rank .eq. 0) then
+      ! Write energy diagnostics
+      call diagnostics_writer('diagnostics/av_energy_diagnostics.dat', temperature, &
+                              av_energies_of_T, av_C_of_T, av_acceptance_of_T)
+      !Write the radial densities to file
+      call ncdf_radial_density_writer('radial_densities/av_radial_density.nc', av_rho_of_T, &
+                                    shells, temperature, av_energies_of_T, setup)
+    end if
 
   
   end subroutine metropolis_simulated_annealing
