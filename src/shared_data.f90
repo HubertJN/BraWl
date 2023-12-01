@@ -23,6 +23,9 @@ module mpi_shared_data
 
   real(real64), parameter :: eV_to_Ry = 13.605693122_real64
 
+  ! Random number seed
+  integer(8) :: seed
+
   !--------------------------------------------------------------------!
   ! Type storing parameters defining simulation (used at runtime)      !
   !                                                                    !
@@ -36,26 +39,36 @@ module mpi_shared_data
     integer :: n_1, n_2, n_3, n_basis
     ! Number of chemical species
     integer :: n_species
+    ! Number of atoms
+    integer :: n_atoms
+    ! Burn in if doing simulated annealing?
+    logical :: burn_in
+    ! Number of burn-in steps (at each temperature if annealing)
+    integer :: burn_in_steps
     ! Number of monte carlo steps (at each temperature if annealing)
     integer :: mc_steps
+    ! Number of monte carlo steps between drawing data
+    integer :: sample_steps
+    ! Fixed or time-based random seed
+    integer :: seedtime=1
     ! Lattice type - name, e.g. fcc, bcc, hcp, ...
     character(len=20) :: lattice
-    ! Atom-atom interchange interaction file name
-    character(len=50) :: exchange
-    ! Names of the chemical species
-    character(len=2), dimension(:), allocatable :: species_names
-    ! Concentrations of the chemical species
-    real(real64), dimension(:), allocatable :: species_concentrations
     ! Lattice parameter (for writing xyz file)
-    real(real64), dimension(3) :: lattice_parameters
+    real(real64) :: lattice_parameter
     ! Lattice vectors (for writing xyz file)
     real(real64), dimension(3,3) :: lattice_vectors
     ! Vector to second basis atom (for writing xyz file)
     real(real64), dimension(3) :: basis_vectors
+    ! Names of the chemical species
+    character(len=2), dimension(:), allocatable :: species_names
+    ! Concentrations of the chemical species
+    real(real64), dimension(:), allocatable :: species_concentrations
+    ! Atom-atom interchange interaction file name
+    character(len=50) :: interaction_file
     ! Inverse temperature
     real(real64) :: beta
     ! Temperature of simulation (or start temperature if annealing)
-    real(real64) :: T_start
+    real(real64) :: T
     ! Temperature step size if annealing
     real(real64) :: delta_T
     ! Number of temperature steps (if annealing)
@@ -76,6 +89,8 @@ module mpi_shared_data
     logical :: nbr_swap
     ! Do we want to store long range order parameters
     logical :: lro
+    ! Do we want to store grids
+    logical :: dump_grids
     ! Random neighbour function to use
     procedure(rand_neighbour), pointer, pass :: rdm_nbr => null()
     ! Monte Carlo step to call. (Neighbour swap or whole lattice swap)
