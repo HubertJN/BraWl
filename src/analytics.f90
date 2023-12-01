@@ -1,10 +1,10 @@
-!----------------------------------------------------!
-! File with module containing functions and routines !
-! to call                                            !
-!                                                    !
-! C Woodgate, Warwick                           2020 !
-!----------------------------------------------------!
-
+!----------------------------------------------------------------------!
+! analytics.f90                                                        !
+!                                                                      !
+! Various routines and tools for analysing the simulation              !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 module analytics
 
   use kinds
@@ -16,9 +16,11 @@ module analytics
 
   contains
 
-  !--------------------------------!
-  ! Function to store system state !
-  !--------------------------------!
+  !--------------------------------------------------------------------!
+  ! Routine to add this state to the average (for LRO)                 !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine store_state(averages, config, setup)
     integer(int16), allocatable, dimension(:,:,:), intent(in) :: config
     type(run_params), intent(in) :: setup
@@ -38,9 +40,11 @@ module analytics
     end do
   end subroutine store_state
 
-  !-------------------------------------------!
-  ! Subroutine to compute average occupancies !
-  !-------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Routine to compute the average (for LRO)                           !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine average_state(averages, setup, n_steps)
     type(run_params), intent(in) :: setup
     integer, intent(in) :: n_steps
@@ -52,9 +56,11 @@ module analytics
     end do
   end subroutine average_state
   
-  !------------------------------------------------------------!
-  ! Subroutine to check that we have conserved particle number !
-  !------------------------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Routine to count the number of particles (used for testing)        !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   function total_particle_count(setup, config) result(total_count)
     integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
     type(run_params) :: setup
@@ -77,9 +83,12 @@ module analytics
 
   end function total_particle_count
 
-  !------------------------------------------------------------!
-  ! Subroutine to check that we have conserved particle number !
-  !------------------------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Routine to print the number of particles of each species (used for !
+  ! testing)                                                           !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine print_particle_count(setup, config)
     integer(int16), allocatable, dimension(:,:,:), intent(in) :: config
     type(run_params) :: setup
@@ -116,13 +125,15 @@ module analytics
              species_count(setup%n_species), new_line('a')
     
     deallocate(species_count)
+
   end subroutine print_particle_count
 
-  !----------------------------------------------!
-  ! Subroutine to compute on-shell distances.    !
-  ! Could just calculate these once, but this is !
-  ! good for a variety of lattices.              !
-  !----------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Subroutine to compute on-shell distances. Could just calculate     !
+  ! these once, but this is good for a variety of lattices.            !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine lattice_shells(setup, shells)
     type(run_params), intent(in) :: setup
     integer :: i,j,k,b,l
@@ -176,9 +187,12 @@ module analytics
 
   end subroutine lattice_shells
 
-  !-------------------------------------------------!
-  ! Subroutine to compute the pair radial densities !
-  !-------------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Subroutine to compute radial densities, i.e. atomic short-range    !
+  ! order parameters.                                                  !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine radial_densities(setup, configuration, n_shells,   &
                               shell_distances, r_densities, T)
     type(run_params), intent(in) :: setup
@@ -271,71 +285,14 @@ module analytics
       end do
     end do
     
-    ! Print to screen
-    !do i=1, n_shells
-    !  write(*,'(a I2)') 'Radial_densities on shell: ', i
-    !  write(*,'(a I2)') 'for temperature step', T
-    !  do j=1, setup%n_species
-    !    do k=1, setup%n_species
-    !      write(*, '(F11.6 A)', advance='no') r_densities(k,j,i, T), '  '
-    !      if (k .eq. setup%n_species) write(*,'(a)') ''
-    !    end do
-    !  end do
-    !end do
-    !write(*,'(a)') ''
-
   end subroutine radial_densities
 
-!  !--------------------------------------------------!
-!  ! sift_down subroutine to be used in heapsort from !
-!  ! Numerical Recipes, 3rd Edition, CUP 2007, p428.  !
-!  !                                                  !
-!  ! N.B. Array must run ra(0:n-1), C-style indexing  !
-!  !--------------------------------------------------!
-!  subroutine sift_down(ra, l, r)
-!    integer :: j, j_old
-!    real(real64), dimension(:), allocatable :: ra
-!    integer, intent(in) :: l, r
-!    real(real64) :: a
-!
-!    a=ra(l)
-!    j_old=l
-!    j=l+1
-!
-!    do while (j .le. r)
-!      if ((j .lt. r) .and. (ra(j) .lt. ra(j+1))) j=j+1
-!      if (a .ge. ra(j)) exit
-!      ra(j_old) = ra(j)
-!      j_old=j
-!      j=2*j+1
-!    end do
-!    ra(j_old) = a
-!  end subroutine sift_down
-!
-!  !--------------------------------------------------!
-!  ! heap_sort subroutine to be used in heapsort from !
-!  ! Numerical Recipes, 3rd Edition, CUP 2007, p428.  !
-!  !                                                  !
-!  ! N.B. Array must run ra(0:n-1), C-style indexing  !
-!  !--------------------------------------------------!
-!  subroutine heap_sort(ra)
-!    real(real64), dimension(:), allocatable :: ra
-!    integer :: i, n
-!    real(real64) :: tmp
-!
-!    n = size(ra)
-!
-!    do i=n/2-1, 0, -1
-!      call sift_down(ra, i, n-1)
-!    end do
-!    do i=n-1, 1, -1
-!      tmp = ra(0)
-!      ra(0) = ra(i)
-!      ra(i) = tmp
-!      call sift_down(ra, 0, i-1)
-!    end do
-!  end subroutine heap_sort
 
+  !--------------------------------------------------------------------!
+  ! Quicksort routine.                                                 !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   recursive subroutine quicksort(array)
     real(real64), intent(inout)::array(:)
     real(real64) :: temp,pivot
@@ -397,4 +354,5 @@ module analytics
     call quicksort(array(left:))
 
   end subroutine quicksort
+
 end module analytics
