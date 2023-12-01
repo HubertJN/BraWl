@@ -240,7 +240,8 @@ module io
     print*, ' Read nbr_swap = ', parameters%nbr_swap
 
     do i=1, parameters%n_species
-      print*, ' Read species ', i, ' = ', parameters%species_names(i), ' at concentration ', parameters%species_concentrations(i)
+      print*, ' Read species ', i, ' = ', parameters%species_names(i), &
+              ' at concentration ', parameters%species_concentrations(i)
     enddo
 
   end subroutine echo_control_file
