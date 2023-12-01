@@ -1,9 +1,10 @@
-!============================================================!
-! Module containing all my calls to NetCDF library routines. !
-! This is for file I/O.                                      !
-!                                                            !
-! C. D. Woodgate                                        2020 !
-!============================================================!
+!----------------------------------------------------------------------!
+! write_netcdf.f90                                                     !
+!                                                                      !
+! Module containing all calls to NetCDF library routines               !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 module write_netcdf
 
   use kinds
@@ -14,9 +15,11 @@ module write_netcdf
 
   contains
 
-  !---------------------------------------------!
-  ! Routine to write radial densities to a file !
-  !---------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Routine to write radial densities to file                          !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine ncdf_radial_density_writer(filename, rho, r, T, U_of_T, setup)
 
     integer, parameter :: rho_ndims = 4
@@ -58,26 +61,26 @@ module write_netcdf
 
     ! Add information about global runtime data
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_x', setup%n_1))
+                            'N_1', setup%n_1))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_y', setup%n_2))
+                            'N_2', setup%n_2))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_z', setup%n_3))
+                            'N_3', setup%n_3))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Number of Species', setup%n_species))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Number of MC steps', setup%mc_steps))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Start Temp', setup%T_start))
+                            'Temperature', setup%T))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Lattice Type', setup%lattice))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Exchange type', setup%exchange))
+                            'Interaction file', setup%interaction_file))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Concentrations', setup%species_cs))
+                            'Concentrations', setup%species_concentrations))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Number of Shells', &
-                            setup%n_shells))
+                            'Warren-Cowley Range', &
+                            setup%wc_range))
 
     ! Define the 3D variables and dimensions
     do i = 1, rho_ndims
@@ -117,9 +120,11 @@ module write_netcdf
 
   end subroutine ncdf_radial_density_writer
 
-  !---------------------------------------------!
-  ! Routine to write order parameters to a file !
-  !---------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Routine to write order parameters to file                          !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine ncdf_order_writer(filename, ierr, order, temperature, setup)
 
     integer, parameter :: grid_ndims = 5
@@ -158,28 +163,28 @@ module write_netcdf
       return
     end if
 
-    !> Add information about global runtime data
+    ! Add information about global runtime data
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_x', setup%n_1))
+                            'N_1', setup%n_1))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_y', setup%n_2))
+                            'N_2', setup%n_2))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_z', setup%n_3))
+                            'N_3', setup%n_3))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Number of Species', setup%n_species))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Number of MC steps', setup%mc_steps))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Start Temp', setup%T_start))
+                            'Temperature', setup%T))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Lattice Type', setup%lattice))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Exchange type', setup%exchange))
+                            'Interaction file', setup%interaction_file))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Concentrations', setup%species_cs))
+                            'Concentrations', setup%species_concentrations))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Number of Shells', &
-                            setup%n_shells))
+                            'Warren-Cowley Range', &
+                            setup%wc_range))
 
     ! Define the 4D variables and dimensions !
     do i = 1, grid_ndims
@@ -242,9 +247,11 @@ module write_netcdf
 
   end subroutine ncdf_order_writer
 
-  !---------------------------------------!
-  ! Routine to write grid state to a file !
-  !---------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Routine to write grid state to file                                !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine ncdf_grid_state_writer(filename, ierr, &
                                     state, temperature, setup)
 
@@ -285,29 +292,28 @@ module write_netcdf
     !> Add information about global runtime data
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'N_basis', setup%n_basis))
+    ! Add information about global runtime data
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_x', setup%n_1))
+                            'N_1', setup%n_1))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_y', setup%n_2))
+                            'N_2', setup%n_2))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'N_z', setup%n_3))
+                            'N_3', setup%n_3))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Number of Species', setup%n_species))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Number of MC steps', setup%mc_steps))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Start Temp', setup%T_start))
-    call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Temperature', temperature))
+                            'Temperature', setup%T))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Lattice Type', setup%lattice))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Exchange type', setup%exchange))
+                            'Interaction file', setup%interaction_file))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Concentrations', setup%species_cs))
+                            'Concentrations', setup%species_concentrations))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Number of Shells', &
-                            setup%n_shells))
+                            'Warren-Cowley Range', &
+                            setup%wc_range))
 
     ! Define the 4D variables and dimensions !
     do i = 1, grid_ndims
@@ -388,30 +394,28 @@ module write_netcdf
       return
     end if
 
-    !> Add information about global runtime data
+    ! Add information about global runtime data
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'n_1', setup%n_1))
+                            'N_1', setup%n_1))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'n_2', setup%n_2))
+                            'N_2', setup%n_2))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'n_3', setup%n_3))
-    call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'n_basis', setup%n_basis))
+                            'N_3', setup%n_3))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Number of Species', setup%n_species))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Number of MC steps', setup%mc_steps))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Start Temp', setup%T_start))
+                            'Temperature', setup%T))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Lattice Type', setup%lattice))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Exchange type', setup%exchange))
+                            'Interaction file', setup%interaction_file))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Concentrations', setup%species_cs))
+                            'Concentrations', setup%species_concentrations))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
-                            'Number of Shells', &
-                            setup%n_shells))
+                            'Warren-Cowley Range', &
+                            setup%wc_range))
 
     ! Define the 4D variables and dimensions !
     do i = 1, grid_ndims
