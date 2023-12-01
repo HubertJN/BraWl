@@ -1,9 +1,10 @@
-!=============================================================!
-! Routines to write to .xyz format for visualisation of alloy !
-! configurations.                                             !
-!                                                             !
-! C. D. Woodgate                                         2021 !
-!=============================================================!
+!----------------------------------------------------------------------!
+! write_xyz.f90                                                        !
+!                                                                      !
+! Module for writing xyz file                                          !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 module write_xyz
 
   use kinds
@@ -14,6 +15,11 @@ module write_xyz
 
   contains
 
+  !--------------------------------------------------------------------!
+  ! Routine to write xyz file                                          !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine xyz_writer(filename, configuration, setup)
     ! Simulation setup information
     type(run_params), intent(in) :: setup
@@ -45,27 +51,18 @@ module write_xyz
       do j=1, grid_sizes(2)
         do k=1, grid_sizes(3)
           do l=1, grid_sizes(4)
+            if (configuration(i,j,k,l) .eq. 0) cycle
             pos = real(j)*setup%lattice_vectors(1,:) + &
                   real(k)*setup%lattice_vectors(2,:) + &
                   real(l)*setup%lattice_vectors(3,:) + &
                   real(i)*setup%basis_vectors
-            if (configuration(i,j,k,l) .eq. 1_int16) then
-              write(7,*) setup%a, pos(1),pos(2),pos(3)
-            else if (configuration(i,j,k,l) .eq. 2_int16) then
-              write(7,*) setup%b, pos(1),pos(2),pos(3)
-            else if (configuration(i,j,k,l) .eq. 3_int16) then
-              write(7,*) setup%c, pos(1),pos(2),pos(3)
-            else if (configuration(i,j,k,l) .eq. 4_int16) then
-              write(7,*) setup%d, pos(1),pos(2),pos(3)
-            else if (configuration(i,j,k,l) .eq. 5_int16) then
-              write(7,*) setup%e, pos(1),pos(2),pos(3)
-            end if
+            write(7,*) setup%species_names(configuration(i,j,k,l)), pos(1),pos(2),pos(3)
           end do
         end do
       end do
     end do
 
-    close(7)
+    close(unit=7)
 
   end subroutine xyz_writer
    

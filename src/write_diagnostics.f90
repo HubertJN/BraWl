@@ -1,9 +1,10 @@
-!=============================================================!
-! Routines to write to .xyz format for visualisation of alloy !
-! configurations.                                             !
-!                                                             !
-! C. D. Woodgate                                         2021 !
-!=============================================================!
+!----------------------------------------------------------------------!
+! write_diagnostics.f90                                                !
+!                                                                      !
+! Module for writing energy data                                       !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 module write_diagnostics
 
   use kinds
@@ -14,6 +15,11 @@ module write_diagnostics
 
   contains
 
+  !--------------------------------------------------------------------!
+  ! Routine to write energy and diagnostic data                        !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
   subroutine diagnostics_writer(filename, temps, energies, C, acceptance)
 
     ! Filename to which to write
