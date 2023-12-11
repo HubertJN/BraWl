@@ -139,7 +139,7 @@ module analytics
     type(run_params), intent(in) :: setup
     integer :: i,j,k,b,l
     real(real64) :: dist
-    real(real64), dimension(3) :: r_vec
+    !real(real64), dimension(3) :: r_vec
     real(real64), dimension(:), allocatable :: all_shells, shells
 
     ! Factor of eight to account for the fact that simulation
