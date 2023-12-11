@@ -193,6 +193,121 @@ module metropolis
   end subroutine metropolis_simulated_annealing
 
   !--------------------------------------------------------------------!
+  ! Runs Metropolis with Kawasaki dynamics. Simulates annealing down   !
+  ! to a target temperature then draws samples N steps apart, where N  !
+  ! is chosen by the user.                                             !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
+  subroutine metropolis_decorrelated_samples(setup, my_rank)
+
+    ! Rank of this processor
+    integer, intent(in) :: my_rank
+
+    ! Arrays for storing data
+    type(run_params) :: setup
+  
+    ! Integers used in calculations
+    integer :: i,j, div_steps, accept, n_save
+    
+    ! Temperature and temperature steps
+    real(real64) :: beta, temp, sim_temp, current_energy, acceptance
+  
+    ! Name of xyz file
+    character(len=42) :: xyz_file
+
+    ! Set up the lattice
+    call initial_setup(setup, config)
+
+    call lattice_shells(setup, shells, config)
+
+    n_save=floor(real(setup%mc_steps)/real(setup%sample_steps))
+    div_steps = setup%mc_steps/1000
+  
+    ! Are we swapping neighbours or on the whole lattice?
+    if (setup%nbr_swap) then
+      setup%mc_step => monte_carlo_step_nbr
+    else
+      setup%mc_step => monte_carlo_step_lattice
+    end if
+
+    if(my_rank == 0) then
+      write(6,'(/,72("-"),/)')
+      write(6,'(24("-"),x,"Commencing Simulation!",x,24("-"),/)')
+    end if
+
+    !---------------------------------------------------!
+    ! Burn-in at each temperature (simulated annealing) !
+    !---------------------------------------------------!
+    do j=1, setup%T_steps
+  
+      ! Work out the temperature and corresponding beta
+      temp = setup%T + real(j-1, real64)*setup%delta_T
+      sim_temp = temp*k_b_in_Ry
+      beta = 1.0_real64/sim_temp
+    
+      ! Burn in
+      if (setup%burn_in) then
+
+        acceptance = 0.0_real64
+
+        do i=1, setup%burn_in_steps
+          ! Make one MC move
+          accept = setup%mc_step(config, beta)
+          acceptance = acceptance + accept
+        end do
+
+        write(6,'(a,f7.2,a)',advance='yes') &
+        " Burn-in complete at temperature ", temp, " on process 0."
+        write(6,'(a,i7,a,/)',advance='yes') &
+        " Accepted ", int(acceptance), " Monte Carlo moves at this temperature,"
+        write(6,'(a,f7.2,a,/)',advance='yes') &
+        " Corresponding to an acceptance rate of ", &
+        100.0*acceptance/float(setup%burn_in_steps), " %"
+
+      end if
+
+    end do ! Loop over temperature
+
+    !--------------------!
+    ! Target Temperature !
+    !--------------------!
+ 
+    acceptance=0
+
+    do i=1, setup%mc_steps
+    
+        ! Make one MC move
+        accept = setup%mc_step(config, beta)
+  
+        acceptance = acceptance + accept
+
+        ! Draw samples
+        if (mod(i, setup%sample_steps) .eq. 0) then
+
+          ! Get the energy of this configuration
+          current_energy = setup%full_energy(config)
+
+          write(xyz_file, '(A11 I3.3 A8 I4.4 A6 I4.4 F2.1 A4)') &
+          'grids/proc_', my_rank, '_config_',                   &
+          int(i/setup%sample_steps), '_at_T_', int(temp),       &
+          temp-int(temp),'.xyz'
+
+          ! Write xyz file
+          call xyz_writer(xyz_file, config, setup)
+  
+          write(6,'(a,i7,a,/)',advance='yes') &
+          " Accepted an additional ", int(acceptance), " Monte Carlo moves before sample."
+
+          acceptance=0
+          
+        end if
+    
+      end do
+
+  end subroutine metropolis_decorrelated_samples
+
+  !--------------------------------------------------------------------!
   ! Runs one MC step assuming pairs swapped across entire lattice      !
   !                                                                    !
   ! C. D. Woodgate,  Warwick                                      2023 !
