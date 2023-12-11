@@ -16,10 +16,9 @@ SYSTEM=$(shell uname -s)
 ifeq ($(strip $(compiler)),)
   MAKECMDGOALS = error
 error:
-	@echo '*** ERROR ***'
-	@echo 'You MUST set a value for the compiler variable'
-	@echo ' eg. "make compiler=intel"'
-	@echo 'Alternatively, you can add "export compiler=intel" to $$HOME/.bashrc'
+	@echo 'You need to set a value for the compiler variable'
+	@echo ' eg. "make compiler=gfortran"'
+	@echo 'Alternatively, you can add "export compiler=gfortran" to $$HOME/.bashrc'
 endif
 
 # Intel
