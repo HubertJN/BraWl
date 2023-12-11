@@ -184,8 +184,7 @@ module initialise
   !                                                                    !
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
-  subroutine clean_up_interaction(setup)
-    type(run_params), intent(inout) :: setup
+  subroutine clean_up_interaction()
 
     deallocate(V_ex)
 
