@@ -66,7 +66,7 @@ program main
   call global_clean_up()
 
   ! Clean up
-  call clean_up_interaction(setup)
+  call clean_up_interaction()
 
   ! Clean up
   call local_clean_up(setup)
