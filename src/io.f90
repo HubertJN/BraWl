@@ -73,7 +73,7 @@ module io
     logical, dimension(11) :: check
     type(run_params) :: parameters
     character(len=100) :: buffer, label
-    integer :: line, pos, ios, ierr, my_rank
+    integer :: line, pos, ios, my_rank
     logical :: exists
 
     check = .false.
