@@ -306,6 +306,8 @@ module write_netcdf
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Temperature', setup%T))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'temperature', temperature))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Lattice Type', setup%lattice))
     call check(nf90_put_att(file_id, NF90_GLOBAL, &
                             'Interaction file', setup%interaction_file))
