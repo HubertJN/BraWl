@@ -70,9 +70,9 @@ module analytics
     total_count = 0
 
     do b=1, setup%n_basis
-      do k=1, setup%n_3
-        do j=1, setup%n_2
-          do i=1, setup%n_1
+      do k=1, 2*setup%n_3
+        do j=1, 2*setup%n_2
+          do i=1, 2*setup%n_1
             if (config(b,i,j,k) .ne. 0_int16) then
               total_count = total_count + 1
             end if
