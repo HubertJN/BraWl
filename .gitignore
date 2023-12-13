@@ -25,6 +25,8 @@
 # Ignore text files
 *.txt
 
+!LICENSE.txt
+
 # Ignore text files
 *.run
 
