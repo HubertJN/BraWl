@@ -1,8 +1,10 @@
-!----------------------------------------------------!
-! MC Routine for computing ground state of an alloy. !
-!                                                    !
-! C Woodgate, Warwick                           2020 !
-!----------------------------------------------------!
+!----------------------------------------------------------------------!
+! main.f90                                                             !
+!                                                                      !
+! Main bontewarlo program.                                             !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 program main
   
   use initialise
@@ -59,6 +61,15 @@ program main
 
     ! Metropolis with Kawasaki dynamics
     call metropolis_simulated_annealing(setup, my_rank)
+
+  else if (setup%mode == 302) then
+
+    ! Draw decorrelated samples
+    call metropolis_decorrelated_samples(setup, my_rank)
+
+  else
+
+   print*, ' Unrecognised mode', setup%mode
 
   end if
 

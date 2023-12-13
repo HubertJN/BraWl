@@ -40,14 +40,14 @@ module metropolis
     type(run_params) :: setup
   
     ! Integers used in calculations
-    integer :: i,j, ierr, div_steps, accept, n_save
+    integer :: i,j, div_steps, accept, n_save !,ierr
     
     ! Temperature and temperature steps
     real(real64) :: beta, temp, sim_temp, current_energy, step_E,     &
                     step_Esq, C, acceptance
   
     ! Name of file for grid state and xyz file at this temperature
-    character(len=34) :: grid_file
+    !character(len=34) :: grid_file
     character(len=36) :: xyz_file
 
     ! Name of file for writing diagnostics at the end
@@ -134,17 +134,17 @@ module metropolis
     
       ! Dump grids if needed
       if (setup%dump_grids) then
-        write(grid_file, '(A11 I3.3 A11 I4.4 F2.1 A3)') 'grids/proc_', my_rank, '_grid_at_T_', &
-                                             int(temp), temp-int(temp), '.nc'
-        write(xyz_file, '(A11 I3.3 A12 I4.4 F2.1 A4)') 'grids/proc_', my_rank, 'config_at_T_', &
-                                             int(temp), temp-int(temp),'.xyz'
+ !       write(grid_file, '(A11 I3.3 A11 I4.4 F2.1 A3)') 'grids/proc_', my_rank, '_grid_at_T_', &
+ !                                            int(temp), temp-int(temp), '.nc'
+        write(xyz_file, '(A11 I3.3 A12 I4.4 F2.1 A4)') 'grids/proc_', &
+        my_rank, 'config_at_T_', int(temp), temp-int(temp),'.xyz'
   
         ! Write xyz file
         call xyz_writer(xyz_file, config, setup)
   
-        ! Write grid to file
-        call ncdf_grid_state_writer(grid_file , ierr, &
-                               config, temp, setup)
+ !       ! Write grid to file
+ !       call ncdf_grid_state_writer(grid_file , ierr, &
+ !                              config, temp, setup)
       end if
   
       ! Compute the radial densities at the end of this temperature
@@ -189,6 +189,9 @@ module metropolis
                                     shells, temperature, av_energies_of_T, setup)
     end if
 
+    if(my_rank == 0) then
+      write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
+    end if
   
   end subroutine metropolis_simulated_annealing
 
@@ -257,13 +260,15 @@ module metropolis
           acceptance = acceptance + accept
         end do
 
-        write(6,'(a,f7.2,a)',advance='yes') &
-        " Burn-in complete at temperature ", temp, " on process 0."
-        write(6,'(a,i7,a,/)',advance='yes') &
-        " Accepted ", int(acceptance), " Monte Carlo moves at this temperature,"
-        write(6,'(a,f7.2,a,/)',advance='yes') &
-        " Corresponding to an acceptance rate of ", &
-        100.0*acceptance/float(setup%burn_in_steps), " %"
+        if(my_rank == 0) then
+          write(6,'(a,f7.2,a)',advance='yes') &
+          " Burn-in complete at temperature ", temp, " on process 0."
+          write(6,'(a,i7,a)',advance='yes') &
+          " Accepted ", int(acceptance), " Monte Carlo moves at this temperature,"
+          write(6,'(a,f7.2,a,/)',advance='yes') &
+          " Corresponding to an acceptance rate of ", &
+          100.0*acceptance/float(setup%burn_in_steps), " %"
+        end if
 
       end if
 
@@ -296,8 +301,10 @@ module metropolis
           ! Write xyz file
           call xyz_writer(xyz_file, config, setup)
   
-          write(6,'(a,i7,a,/)',advance='yes') &
-          " Accepted an additional ", int(acceptance), " Monte Carlo moves before sample."
+          if (my_rank == 0) then
+            write(6,'(a,i7,a,/)',advance='yes') &
+            " Accepted an additional ", int(acceptance), " Monte Carlo moves before sample."
+          end if
 
           acceptance=0
           
@@ -305,6 +312,10 @@ module metropolis
     
       end do
 
+    if(my_rank == 0) then
+      write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
+    end if
+  
   end subroutine metropolis_decorrelated_samples
 
   !--------------------------------------------------------------------!
