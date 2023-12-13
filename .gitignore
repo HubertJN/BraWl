@@ -25,6 +25,9 @@
 # Ignore text files
 *.txt
 
+# Ignore text files
+*.run
+
 # Ignore input text files
 concentration_calculator_3d/inputs/*
 # but not my example input
