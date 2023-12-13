@@ -4,11 +4,11 @@ A code for performing lattice-based Monte Carlo simulations of alloys with an in
 
 ## Citations
 ANY publications/presentations/further work resulting from the use of this software should cite the original publication for which it was developed:
-C. D. Woodgate, J. B. Staunton, Phys. Rev. B 105, 115124 (2023)
+C. D. Woodgate, J. B. Staunton, Phys. Rev. B **105**, 115124 (2023)
 DOI: [10.1103/PhysRevB.105.115124](https://doi.org/10.1103/PhysRevB.105.115124)
 
 In addition, if you use the bcc implementation, you should cite the original paper for which that lattice type was implemented:
-C. D. Woodgate, J. B. Staunton, Phys. Rev. Mater. 107, 013801 (2023)
+C. D. Woodgate, J. B. Staunton, Phys. Rev. Mater. **7**, 013801 (2023)
 DOI: [10.1103/PhysRevMaterials.7.013801](https://doi.org/10.1103/PhysRevMaterials.7.013801)
 
 ## Compilation
@@ -22,6 +22,10 @@ module load GCC/11.3.0 OpenMPI/4.1.4 netCDF-Fortran/4.6.0
 then you should be able to build the code with
 ```
 make compiler=gfortran
+```
+and run it in a directory with a suitable input file via
+```
+~/codes/bontewarlo/bontewarlo.run
 ```
 
 ## Running the code
