@@ -29,9 +29,9 @@ module energetics
 
     energy=0.0_real64
 
-    do l=1, setup%n_3
-      do k=1, setup%n_2
-        do j=1, setup%n_1
+    do l=1, 2*setup%n_3
+      do k=1, 2*setup%n_2
+        do j=1, 2*setup%n_1
           do i=1, setup%n_basis
             if (config(i,j,k,l) .eq. 0_int16) cycle
             energy = energy + setup%nbr_energy(config, j, k, l)
@@ -165,7 +165,7 @@ module energetics
     nbrs(11) = config(1, im2, site_j,  kp2)
     nbrs(12) = config(1,site_i,  jp2,  kp2)
     do i=1, 12
-      energy = energy + V_ex(species, nbrs(i), 1)
+      energy = energy + V_ex(species, nbrs(i), 3)
     end do
     deallocate(nbrs)
   end function bcc_shell3_energy
