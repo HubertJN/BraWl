@@ -1,9 +1,10 @@
-!--------------------------------------------------------!
-! Routines for getting random sites and their neighbours !
-!                                                        !
-! C Woodgate, Warwick                           2020     !
-!--------------------------------------------------------!
-
+!----------------------------------------------------------------------!
+! random_site.f90                                                      !
+!                                                                      !
+! Module for getting random lattice site and neighbour.                !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 module random_site
 
   use kinds
