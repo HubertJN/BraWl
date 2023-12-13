@@ -226,6 +226,7 @@ module io
     type(run_params) :: parameters
     integer :: i
 
+    print*, ' Read mode = ', parameters%mode
     print*, ' Read n_1 = ', parameters%n_1
     print*, ' Read n_2 = ', parameters%n_2
     print*, ' Read n_3 = ', parameters%n_3
@@ -239,6 +240,7 @@ module io
     print*, ' Read T = ', parameters%T
     print*, ' Read delta_T = ', parameters%delta_T
     print*, ' Read T_steps = ', parameters%T_steps
+    print*, ' Read dump_grids = ', parameters%dump_grids
     print*, ' Read lro = ', parameters%lro
     print*, ' Read nbr_swap = ', parameters%nbr_swap
 
