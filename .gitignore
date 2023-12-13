@@ -22,20 +22,14 @@
 # Ignore executables
 *.exe
 
+# Ignore executable files
+*.run
+
 # Ignore text files
 *.txt
 
+# But not the license file
 !LICENSE.txt
 
-# Ignore text files
-*.run
-
-# Ignore input text files
-concentration_calculator_3d/inputs/*
-# but not my example input
-!concentration_calculator_3d/inputs/input.txt
-
-# Ignore input text files
-mc_bragg-williams_3d/inputs/*
-# but not my example input
-!mc_bragg-williams_3d/inputs/input.txt
+# Also ignore the examples directory
+!examples/01_CrCoNi/*
