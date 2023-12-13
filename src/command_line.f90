@@ -1,20 +1,14 @@
-  !> @brief Functions to parse command line arguments
-  !>
-  !> Module to read command line arguments to a program
-  !> We assume they are of the form name=value. There must
-  !> NOT be spaces around the '=' sign!
-  !> Value can be extracted as a string, a long-integer
-  !> or a double-precision real.
-  !> Argument names are limited to 20 chars, and values
-  !> to 30 chars as read.
-  !>
-  !> Note that the only functions you should call from outside are
-  !> parse_args, get_arg and get_arg_value
-  !> A complete example code is:
-  ! @snippet command_line_snippet.f90 Cmd eg
-  !> @include command_line_snippet.f90
-
-  !> @author H Ratcliffe
+!----------------------------------------------------------------------!
+! command_line.f90                                                     !
+!                                                                      !
+! Module for command-line arguments.                                   !
+!                                                                      !
+! Adapted from sample code developed for the Scientific Programming    !
+! course from the Heterogenous Systems CDT                             !
+! by H. Ratcliffe & C. S. Brady                                        !
+!                                                                      !
+! C. D. Woodgate,  Warwick                                        2023 !
+!----------------------------------------------------------------------!
 
 MODULE command_line
 
