@@ -2,6 +2,8 @@
 
 A code for performing lattice-based Monte Carlo simulations of alloys with an internal energy given by a Bragg-Williams Hamiltonian. The code will be periodically updated so it is best to check the GitHub repository.
 
+Copyright (C) Christopher Woodgate 2019-2023. Released under the GNU Lesser General Public License, version 3.
+
 ## Citations
 ANY publications/presentations/further work resulting from the use of this software should cite the original publication for which it was developed:
 C. D. Woodgate, J. B. Staunton, Phys. Rev. B **105**, 115124 (2023)
