@@ -392,7 +392,7 @@ module metropolis
 
     ! Don't do anything if same species
     if (site1 == site2) then
-      accept=1
+      accept=0
       return
     end if
 
@@ -414,21 +414,6 @@ module metropolis
     else
       accept = 0
       call pair_swap(config, rdm1, rdm2)
-    end if
-
-    call comms_reduce_results(setup)
-
-    if (my_rank .eq. 0) then
-      write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
-
-      ! Write energy diagnostics
-      call diagnostics_writer('diagnostics/av_energy_diagnostics.dat', temperature, &
-                              av_energies_of_T, av_C_of_T, av_acceptance_of_T)
-
-      !Write the radial densities to file
-      call ncdf_radial_density_writer('radial_densities/av_radial_density.nc', av_rho_of_T, &
-                                    shells, temperature, av_energies_of_T, setup)
-
     end if
 
   end function monte_carlo_step_nbr
