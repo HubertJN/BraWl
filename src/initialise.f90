@@ -86,10 +86,14 @@ module initialise
     else if(trim(setup%lattice) == 'bcc') then
       setup%n_basis = 1
       setup%n_atoms = 2*setup%n_1*setup%n_2*setup%n_3
-      setup%lattice_vectors = reshape( (/-0.5, 0.5, 0.5,     &
-                                          0.5,-0.5, 0.5,     &
-                                          0.5, 0.5,-0.5  /), &
+      setup%lattice_vectors = reshape( (/ 0.5, 0.0, 0.0,     &
+                                          0.0, 0.5, 0.0,     &
+                                          0.0, 0.0, 0.5  /), &
                                        (/ 3, 3 /))
+!      setup%lattice_vectors = reshape( (/-0.5, 0.5, 0.5,     &
+!                                          0.5,-0.5, 0.5,     &
+!                                          0.5, 0.5,-0.5  /), &
+!                                       (/ 3, 3 /))
       setup%basis_vectors   = (/ 0.0, 0.0, 0.0 /)
       if (setup%interaction_range .eq. 1) then
         setup%nbr_energy => bcc_energy_1shells
@@ -110,10 +114,14 @@ module initialise
     else if(trim(setup%lattice) == 'fcc') then
       setup%n_basis = 1
       setup%n_atoms = 4*setup%n_1*setup%n_2*setup%n_3
-      setup%lattice_vectors = reshape( (/ 0.0, 0.5, 0.5,     &
-                                          0.5, 0.0, 0.5,     &
-                                          0.5, 0.5, 0.0  /), &
+      setup%lattice_vectors = reshape( (/ 0.5, 0.0, 0.0,     &
+                                          0.0, 0.5, 0.0,     &
+                                          0.0, 0.0, 0.5  /), &
                                        (/ 3, 3 /))
+!      setup%lattice_vectors = reshape( (/ 0.0, 0.5, 0.5,     &
+!                                          0.5, 0.0, 0.5,     &
+!                                          0.5, 0.5, 0.0  /), &
+!                                       (/ 3, 3 /))
       setup%basis_vectors   = (/ 0.0, 0.0, 0.0 /)
       if (setup%interaction_range .eq. 1) then
         setup%nbr_energy => fcc_energy_1shells
