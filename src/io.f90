@@ -30,7 +30,7 @@ module io
     call date_and_time(date=date,time=time)
 
     write(6,'(/,72("="))')
-    write(6,'(18x,"Bonte Warlo Version 0.1.0, 13.12.23")')
+    write(6,'(18x,"Bonte Warlo Version 0.1.2, 08.01.24")')
     write(6,'(72("-"))')
 
     if (point .eq. 's') then
