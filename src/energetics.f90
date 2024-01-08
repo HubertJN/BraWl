@@ -40,6 +40,9 @@ module energetics
       end do
     end do
 
+    ! Divide by two to correct double-counting
+    energy = 0.5_real64*energy
+
   end function total_energy
 
   !--------------------------------------------------------------------!
