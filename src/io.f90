@@ -174,8 +174,10 @@ module io
 
     allocate(parameters%species_names(parameters%n_species))
     allocate(parameters%species_concentrations(0:parameters%n_species))
+    allocate(parameters%species_numbers(parameters%n_species))
 
     parameters%species_concentrations = 0.0_real64
+    parameters%species_numbers = 0
 
     line=0
 
@@ -201,7 +203,8 @@ module io
           check(1) = .true.
         case ('species_concentrations')  
           read(buffer, *, iostat=ios) parameters%species_concentrations(1:)
-          check(2) = .true.
+        case ('species_numbers')  
+          read(buffer, *, iostat=ios) parameters%species_numbers(:)
         case default
         end select
       end if
@@ -244,10 +247,19 @@ module io
     print*, ' Read lro = ', parameters%lro
     print*, ' Read nbr_swap = ', parameters%nbr_swap
 
-    do i=1, parameters%n_species
-      print*, ' Read species ', i, ' = ', parameters%species_names(i), &
-              ' at concentration ', parameters%species_concentrations(i)
-    enddo
+    ! Print specified concentrations/numbers of atoms
+    if (abs(sum(parameters%species_concentrations)-1.0_real64) &
+        .lt. 0.001) then
+      do i=1, parameters%n_species
+        print*, ' Read species ', i, ' = ', parameters%species_names(i), &
+                ' at concentration ', parameters%species_concentrations(i)
+      enddo
+    else
+      do i=1, parameters%n_species
+        print*, ' Read species ', i, ' = ', parameters%species_names(i), &
+                ' at ', parameters%species_numbers(i), ' atoms'
+      enddo
+    end if
 
   end subroutine echo_control_file
 

@@ -63,6 +63,8 @@ module shared_data
     character(len=2), dimension(:), allocatable :: species_names
     ! Concentrations of the chemical species
     real(real64), dimension(:), allocatable :: species_concentrations
+    ! Number of atoms of each chemical species
+    integer(real64), dimension(:), allocatable :: species_numbers
     ! Atom-atom interchange interaction file name
     character(len=50) :: interaction_file
     ! Inverse temperature

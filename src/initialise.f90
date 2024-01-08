@@ -146,6 +146,16 @@ module initialise
       print*, 'Lattice type not yet implemented!'
       stop
     end if
+
+    ! Check on concentrations and numbers of atoms
+    if ((abs(sum(setup%species_concentrations)-1.0_real64) &
+                                        .gt. 0.001_real64) &
+    .and. (sum(setup%species_numbers) .ne. setup%n_atoms)) &
+    then
+      print*, 'Invalid numbers of atoms or concentrations specified'
+      stop
+    end if
+
   end subroutine initialise_function_pointers
 
   !--------------------------------------------------------------------!
@@ -257,10 +267,23 @@ module initialise
     grid_dims = shape(config)
     n_species = int(setup%n_species, kind=int16)
 
-    do i=1, n_species-1
-      species_count(i) = floor(real(n_sites)*setup%species_concentrations(i))
-    end do
-    species_count(n_species) = n_sites - sum(species_count(1:(n_species-1)))
+    ! Case user specified number of each species
+    if (sum(setup%species_numbers) .eq. setup%n_atoms) then
+      species_count = setup%species_numbers
+      print*, species_count, setup%n_species
+      do i=1, setup%n_species
+        setup%species_concentrations(i) = real(species_count(i))/real(setup%n_atoms)
+      end do
+    ! Case user specified concentrations of each species
+    else
+      do i=1, n_species-1
+        species_count(i) = floor(real(n_sites)*setup%species_concentrations(i))
+      end do
+      species_count(n_species) = n_sites - sum(species_count(1:(n_species-1)))
+    end if
+
+    print*, setup%species_numbers, setup%n_atoms
+    print*, setup%species_concentrations
 
     ! Set configuration to be zero
     config = 0_int16
