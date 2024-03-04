@@ -105,6 +105,8 @@ module initialise
         setup%nbr_energy => bcc_energy_4shells
       else if (setup%interaction_range .eq. 5) then
         setup%nbr_energy => bcc_energy_5shells
+      else if (setup%interaction_range .eq. 6) then
+        setup%nbr_energy => bcc_energy_6shells
       else
         print*, 'Unsupported number of shells'
         stop
@@ -270,7 +272,6 @@ module initialise
     ! Case user specified number of each species
     if (sum(setup%species_numbers) .eq. setup%n_atoms) then
       species_count = setup%species_numbers
-      print*, species_count, setup%n_species
       do i=1, setup%n_species
         setup%species_concentrations(i) = real(species_count(i))/real(setup%n_atoms)
       end do
@@ -281,9 +282,6 @@ module initialise
       end do
       species_count(n_species) = n_sites - sum(species_count(1:(n_species-1)))
     end if
-
-    print*, setup%species_numbers, setup%n_atoms
-    print*, setup%species_concentrations
 
     ! Set configuration to be zero
     config = 0_int16
