@@ -100,6 +100,15 @@ module shared_data
   end type run_params
 
   !--------------------------------------------------------------------!
+  ! Type storing parameters defining NS simulation (used at runtime)   !
+  !                                                                    !
+  ! L. B. Partay,  Warwick                                        2024 !
+  !--------------------------------------------------------------------!
+  type ns_run_params
+    integer :: a_thing
+  end type ns_run_params
+
+  !--------------------------------------------------------------------!
   ! Interface for neighbour implementation                             !
   !                                                                    !
   ! C. D. Woodgate,  Warwick                                      2023 !
