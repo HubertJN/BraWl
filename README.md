@@ -41,7 +41,7 @@ Most of the options specified in the input file are fairly self-explanatory. The
 Any/all contributions are welcome via pull requests. 
 
 ## License
-This software is released under the MIT license. See the file LICENSE.txt for details.
+This software is released under the GPL license. See the file LICENSE.txt for details.
 
 ## Questions, Brickbats, and Bouquets
 [Drop me an email](mailto:christopher.woodgate@physics.org) if you have any questions, comments, or feedback!
