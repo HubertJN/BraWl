@@ -158,7 +158,8 @@ module random_site
   ! Function to compute energy of swapping a pair !
   !-----------------------------------------------!
   subroutine pair_swap(config, idx1, idx2)
-    integer(int16), allocatable, dimension(:,:,:,:) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:) :: config
+    integer(int16), dimension(:,:,:,:) :: config
     integer, dimension(4), intent(in) :: idx1, idx2
     integer(int16) :: species1, species2
 

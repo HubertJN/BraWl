@@ -26,7 +26,7 @@ program main
   type(run_params) :: setup
 
   ! Nested Sampling parameters type
-  type(ns_run_params) :: ns_setup
+  type(ns_params) :: ns_setup
 
   ! Start MPI
   call comms_initialise()
@@ -55,7 +55,7 @@ program main
   ! Initialise some global arrays
   call initialise_global_arrays(setup)
 
-  ! Initialise some global arrays
+  ! Initialise some local arrays
   call initialise_local_arrays(setup)
 
   !---------------!

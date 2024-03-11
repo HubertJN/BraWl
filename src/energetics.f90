@@ -22,7 +22,8 @@ module energetics
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
   function total_energy(setup,config) result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer :: i, j, k, l
@@ -54,7 +55,8 @@ module energetics
   function bcc_shell1_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -96,7 +98,8 @@ module energetics
   function bcc_shell2_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -136,7 +139,8 @@ module energetics
   function bcc_shell3_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -182,7 +186,8 @@ module energetics
   function bcc_shell4_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -250,7 +255,8 @@ module energetics
   function bcc_shell5_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -293,7 +299,8 @@ module energetics
   function bcc_shell6_energy(setup, site_i, site_j, site_k, &
                              config,  species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -333,7 +340,8 @@ module energetics
   !--------------------------------------------------------------------!
   function bcc_energy_1shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -353,7 +361,8 @@ module energetics
   !--------------------------------------------------------------------!
   function bcc_energy_2shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -374,7 +383,8 @@ module energetics
   !--------------------------------------------------------------------!
   function bcc_energy_3shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -396,7 +406,8 @@ module energetics
   !--------------------------------------------------------------------!
   function bcc_energy_4shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -419,7 +430,8 @@ module energetics
   !--------------------------------------------------------------------!
   function bcc_energy_5shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -443,7 +455,8 @@ module energetics
   !--------------------------------------------------------------------!
   function bcc_energy_6shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -469,7 +482,8 @@ module energetics
   function fcc_shell1_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -515,7 +529,8 @@ module energetics
   function fcc_shell2_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -554,7 +569,8 @@ module energetics
   function fcc_shell3_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -619,7 +635,8 @@ module energetics
   function fcc_shell4_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -665,7 +682,8 @@ module energetics
   function fcc_shell5_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -730,7 +748,8 @@ module energetics
   function fcc_shell6_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -771,7 +790,8 @@ module energetics
   !--------------------------------------------------------------------!
   function fcc_energy_1shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -791,7 +811,8 @@ module energetics
   !--------------------------------------------------------------------!
   function fcc_energy_2shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -812,7 +833,8 @@ module energetics
   !--------------------------------------------------------------------!
   function fcc_energy_3shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -834,7 +856,8 @@ module energetics
   !--------------------------------------------------------------------!
   function fcc_energy_4shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -857,7 +880,8 @@ module energetics
   !--------------------------------------------------------------------!
   function fcc_energy_5shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -881,7 +905,8 @@ module energetics
   !--------------------------------------------------------------------!
   function fcc_energy_6shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -906,7 +931,8 @@ module energetics
   !--------------------------------------------------------------------!
   function simple_cubic_1shell_energy(setup, site_i, site_j, site_k, config, species) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -950,7 +976,8 @@ module energetics
   !--------------------------------------------------------------------!
   function simple_cubic_energy_1shells(setup, config, site_i, site_j, site_k) &
            result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     real(real64) :: energy
     class(run_params), intent(in) :: setup
     integer, intent(in) :: site_i, site_j, site_k
@@ -969,7 +996,8 @@ module energetics
   !--------------------------------------------------------------------!
   function pair_energy(setup, config, idx1, idx2)&
        result(energy)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     type(run_params), intent(in) :: setup
     integer, dimension(4), intent(in) :: idx1, idx2
     real(real64) :: energy

@@ -324,7 +324,8 @@ module metropolis
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
   function monte_carlo_step_lattice(setup, config, beta) result(accept)
-    integer(int16), allocatable, dimension(:,:,:,:) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:) :: config
+    integer(int16), dimension(:,:,:,:) :: config
     class(run_params), intent(in) :: setup
     integer :: accept
     integer, dimension(4) :: rdm1, rdm2
@@ -374,7 +375,8 @@ module metropolis
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
   function monte_carlo_step_nbr(setup, config, beta) result(accept)
-    integer(int16), allocatable, dimension(:,:,:,:) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:) :: config
+    integer(int16), dimension(:,:,:,:) :: config
     class(run_params), intent(in) :: setup
     integer :: accept
     integer, dimension(4) :: rdm1, rdm2
