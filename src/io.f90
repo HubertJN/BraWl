@@ -290,9 +290,9 @@ module io
 
   end subroutine read_exchange
 
-  !-----------------------------------------------------!
-  ! Subroutine to read in exchange parameters from file !
-  !-----------------------------------------------------!
+  !------------------------------------------------------!
+  ! Subroutine to parse in exchange parameters from file !
+  !------------------------------------------------------!
   subroutine parse_inputs(setup, my_rank)
     type(run_params) :: setup
     integer :: my_rank
@@ -328,5 +328,77 @@ module io
     end if
 
   end subroutine parse_inputs
+
+  
+  !--------------------------------------------------------------------!
+  ! Subroutine to read and parse nested sampling control file          !
+  !                                                                    !
+  ! L. B. Partay, Warwick                                         2024 !
+  !--------------------------------------------------------------------!
+  subroutine read_ns_file(filename, parameters)
+    character(len=*), intent(in) :: filename
+    logical, dimension(8) :: check
+    type(ns_params) :: parameters
+    character(len=100) :: buffer, label
+    integer :: line, pos, ios
+
+    check = .false.
+
+    ios=0; line=0
+
+    open(25, file=filename, iostat=ios)
+
+    if (ios .ne. 0) then
+      stop 'Could not parse input file. Aborting...'
+    end if
+
+    write(*,'(a)', advance='no') new_line('a')
+    print*, '###############################'
+    print*, '#  Parsing NS input file      #'
+    print*, '###############################'
+
+    print*, '# NS input file name: ', filename
+
+    do while (ios==0)
+
+      read(25, "(A)", iostat=ios) buffer
+
+      if(ios==0) then
+        line=line+1
+
+        pos = scan(buffer, '=')
+        label=buffer(1:pos-1)
+        buffer = buffer(pos+1:)
+
+        select case (label)
+        case ('n_walkers')
+          read(buffer, *, iostat=ios) parameters%n_walkers
+          print*, '# Read n_walkers = ', parameters%n_walkers
+        case ('n_steps')
+          read(buffer, *, iostat=ios) parameters%n_steps
+          print*, '# Read n_steps = ', parameters%n_steps
+        case ('n_iter')
+          read(buffer, *, iostat=ios) parameters%n_iter
+          print*, '# Read n_iter = ', parameters%n_iter
+        case ('outfile_ener')
+          read(buffer, *, iostat=ios) parameters%outfile_ener
+          print*, '# Read outfile_ener = ', parameters%outfile_ener
+        case ('outfile_traj')
+          read(buffer, *, iostat=ios) parameters%outfile_traj
+          print*, '# Read outfile_traj = ', parameters%outfile_traj
+        case ('traj_freq')
+          read(buffer, *, iostat=ios) parameters%traj_freq
+          print*, '# Write configuration every n-th NS iteration = ', parameters%traj_freq
+        case default
+          print*, '# Skipping invalid label'
+        end select
+      end if
+    end do
+
+    print*, '# Finished parsing NS input file #'
+    print*, '###############################', new_line('a')
+    close(25)
+
+  end subroutine read_ns_file
 
 end module io

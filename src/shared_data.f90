@@ -100,6 +100,24 @@ module shared_data
   end type run_params
 
   !--------------------------------------------------------------------!
+  ! Type storing parameters defining NS simulation (used at runtime)   !
+  !                                                                    !
+  ! L. B. Partay,  Warwick                                        2024 !
+  !--------------------------------------------------------------------!
+  type ns_params
+    ! Number of nested sampling walkers
+    integer :: n_walkers
+    ! Number of steps required for walk generating a new configuration
+    integer :: n_steps
+    ! Number of NS iterations before sampling is finished
+    integer :: n_iter
+    ! Frequency of writing configuration (every traj_freq-th NS iteration)
+    integer :: traj_freq
+    ! Output filenames
+    character(len=100) :: outfile_ener, outfile_traj  
+  end type ns_params
+
+  !--------------------------------------------------------------------!
   ! Interface for neighbour implementation                             !
   !                                                                    !
   ! C. D. Woodgate,  Warwick                                      2023 !
@@ -110,7 +128,8 @@ module shared_data
     function hamiltonian(setup, config)
       use kinds
       import :: run_params
-      integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+      !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+      integer(int16), dimension(:,:,:,:), intent(in) :: config
       real(real64) :: hamiltonian
       class(run_params), intent(in) :: setup
     end function
@@ -119,7 +138,8 @@ module shared_data
     function neighbour(setup, config, site_i, site_j, site_k)
       use kinds
       import :: run_params
-      integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+      !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+      integer(int16), dimension(:,:,:,:), intent(in) :: config
       real(real64) :: neighbour
       class(run_params), intent(in) :: setup
       integer, intent(in) :: site_i, site_j, site_k
@@ -146,7 +166,8 @@ module shared_data
     function monte_carlo(setup, config, beta) result(accept)
       use kinds
       import :: run_params
-      integer(int16), allocatable, dimension(:,:,:,:) :: config
+      !integer(int16), allocatable, dimension(:,:,:,:) :: config
+      integer(int16), dimension(:,:,:,:) :: config
       class(run_params), intent(in) :: setup
       integer :: accept
       real(real64), intent(in) :: beta

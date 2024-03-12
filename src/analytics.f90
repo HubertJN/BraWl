@@ -22,7 +22,8 @@ module analytics
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
   subroutine store_state(averages, config, setup)
-    integer(int16), allocatable, dimension(:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:), intent(in) :: config
     type(run_params), intent(in) :: setup
     real(real64), dimension(:,:,:,:), intent(inout), allocatable :: averages
     integer :: i,j,k,l
@@ -62,7 +63,8 @@ module analytics
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
   function total_particle_count(setup, config) result(total_count)
-    integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     type(run_params) :: setup
     integer :: total_count
     integer :: i,j,k,b
@@ -90,9 +92,10 @@ module analytics
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
   subroutine print_particle_count(setup, config)
-    integer(int16), allocatable, dimension(:,:,:), intent(in) :: config
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
     type(run_params) :: setup
-    integer, dimension(3) :: sizes
+    integer, dimension(4) :: sizes
     integer, dimension(:), allocatable :: species_count
     integer :: i,j,k, n
 
@@ -106,10 +109,10 @@ module analytics
     do k=1, sizes(3)
       do j=1, sizes(2)
         do i=1, sizes(1)
-          if (config(i,j,k) .ne. 0_int16) then
+          if (config(1,i,j,k) .ne. 0_int16) then
             n = n+1
-            species_count(config(i,j,k)) = &
-              species_count(config(i,j,k)) + 1
+            species_count(config(1,i,j,k)) = &
+              species_count(config(1,i,j,k)) + 1
           end if
         end do
       end do
@@ -135,7 +138,8 @@ module analytics
   ! C. D. Woodgate,  Warwick                                      2023 !
   !--------------------------------------------------------------------!
   subroutine lattice_shells(setup, shells, configuration)
-    integer(int16), dimension(:,:,:,:), allocatable :: configuration
+    !integer(int16), dimension(:,:,:,:), allocatable :: configuration
+    integer(int16), dimension(:,:,:,:) :: configuration
     type(run_params), intent(in) :: setup
     integer :: i,j,k,b,l
     real(real64) :: dist
@@ -214,7 +218,8 @@ module analytics
   subroutine radial_densities(setup, configuration, n_shells,   &
                               shell_distances, r_densities, T)
     type(run_params), intent(in) :: setup
-    integer(int16), dimension(:,:,:,:), allocatable :: configuration
+    !integer(int16), dimension(:,:,:,:), allocatable :: configuration
+    integer(int16), dimension(:,:,:,:) :: configuration
     real(real64), dimension(:), allocatable :: shell_distances
     real(real64), dimension(:,:,:,:), allocatable :: r_densities
     integer, intent(in) :: n_shells, T

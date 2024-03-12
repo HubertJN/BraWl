@@ -83,11 +83,11 @@ module display
   !--------------------------------------------------------------------!
   subroutine display_grid(grid, show_borders, title)
 
-    integer(kind=int16), intent(in), dimension(:,:,:) :: grid
+    integer(kind=int16), intent(in), dimension(:,:,:,:) :: grid
     logical, intent(in), optional :: show_borders
     character(len=*), optional :: title
     logical :: borders
-    integer, dimension(3) :: sizes
+    integer, dimension(4) :: sizes
     integer :: ix, iy, iz
     character(len=1) :: c
     character(len=4), parameter :: clrstr = char(27)//'[2j'
@@ -112,8 +112,8 @@ module display
       do iy = sizes(2), 1, -1
         if (borders) write(*, '(a)', advance='no') '|'
         do ix = 1, sizes(1)
-          if (grid(ix,iy,iz) .ne. 0) then
-            write(c, '(I1)') grid(ix, iy, iz)
+          if (grid(1,ix,iy,iz) .ne. 0) then
+            write(c, '(I1)') grid(1,ix, iy, iz)
           else
             c = ' '
           end if

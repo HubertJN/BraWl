@@ -3,7 +3,7 @@
 !                                                                      !
 ! Main bontewarlo program.                                             !
 !                                                                      !
-! C. D. Woodgate,  Warwick                                        2023 !
+! C. D. Woodgate,  Warwick                                        2024 !
 !----------------------------------------------------------------------!
 program main
   
@@ -11,6 +11,7 @@ program main
   use comms
   use shared_data
   use metropolis
+  use nested_sampling
   use io
   use kinds
   use c_functions
@@ -23,6 +24,9 @@ program main
 
   ! Runtime parameters type
   type(run_params) :: setup
+
+  ! Nested Sampling parameters type
+  type(ns_params) :: ns_setup
 
   ! Start MPI
   call comms_initialise()
@@ -51,7 +55,7 @@ program main
   ! Initialise some global arrays
   call initialise_global_arrays(setup)
 
-  ! Initialise some global arrays
+  ! Initialise some local arrays
   call initialise_local_arrays(setup)
 
   !---------------!
@@ -66,6 +70,11 @@ program main
 
     ! Draw decorrelated samples
     call metropolis_decorrelated_samples(setup, my_rank)
+
+  else if (setup%mode == 303) then
+
+    ! Nested Sampling algorithm
+    call nested_sampling_main(setup, ns_setup, my_rank)
 
   else
 
