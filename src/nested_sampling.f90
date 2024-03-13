@@ -167,7 +167,6 @@ module nested_sampling
     
           ! since we are always swapping different atom types, the delta_e cannot be zero
           delta_e = e_swapped - e_unswapped
-          write(*,*) delta_e
     
           if (walker_energies(i_max(1))+delta_e < ener_limit) then
              !accept
