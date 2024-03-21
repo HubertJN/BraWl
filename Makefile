@@ -24,8 +24,8 @@ endif
 # Intel
 ifeq ($(strip $(compiler)),intel)
   FC = mpiifort
-#  FFLAGS = -O3 
-  FFLAGS = -O0 -warn all -check all
+  FFLAGS = -O3 
+#  FFLAGS = -O0 -warn all -check all
   FFLAGS += -module $(OBJDIR)
   CC = icc
   CFLAGS = -O3
@@ -34,8 +34,8 @@ endif
 # gfortran
 ifeq ($(strip $(compiler)),gfortran)
   FC = mpif90
-  FFLAGS = -O0 -Wall -Wextra -fcheck=bounds
-#  FFLAGS = -O3
+#  FFLAGS = -O0 -Wall -Wextra -fcheck=bounds
+  FFLAGS = -O3
   FFLAGS += -I/usr/local/include -I$(OBJDIR) -J$(OBJDIR)
   LDFLAGS=-lgcc
   CC=gcc -I$(INCDIR)
