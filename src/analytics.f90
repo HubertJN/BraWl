@@ -210,19 +210,19 @@ module analytics
   end subroutine lattice_shells
 
   !--------------------------------------------------------------------!
-  ! Subroutine to compute radial densities, i.e. atomic short-range    !
+  ! Function to compute radial densities, i.e. atomic short-range      !
   ! order parameters.                                                  !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Warwick                                      2024 !
   !--------------------------------------------------------------------!
-  subroutine radial_densities(setup, configuration, n_shells,   &
-                              shell_distances, r_densities, T)
+  function radial_densities(setup, configuration, n_shells,            &
+                            shell_distances) result(r_densities)
     type(run_params), intent(in) :: setup
-    !integer(int16), dimension(:,:,:,:), allocatable :: configuration
     integer(int16), dimension(:,:,:,:) :: configuration
     real(real64), dimension(:), allocatable :: shell_distances
-    real(real64), dimension(:,:,:,:), allocatable :: r_densities
-    integer, intent(in) :: n_shells, T
+    real(real64), dimension(setup%n_species,setup%n_species,           &
+                            n_shells) :: r_densities
+    integer, intent(in) :: n_shells
     integer :: i_1,i_2,i_3,j_1,j_2,j_3,j_b,jj_1,jj_2,jj_3, &
                l, species_i, species_j, i,j, i_b
     integer, dimension(setup%n_species) :: particle_counts
@@ -286,8 +286,8 @@ module analytics
                         ! Add it to the relevant entry for this shell
                         species_i = configuration(i_b,i_1, i_2, i_3)
                         species_j = configuration(j_b,j_1, j_2, j_3)
-                        r_densities(species_i, species_j, l, T) = &
-                          r_densities(species_i, species_j, l, T) + 1.0_real64 
+                        r_densities(species_i, species_j, l) = &
+                          r_densities(species_i, species_j, l) + 1.0_real64 
                       end if
                     end do
                   end do
@@ -303,11 +303,11 @@ module analytics
     ! Average them
     do i=1, n_shells
       do j=1, setup%n_species
-        r_densities(j,:,i, T) = r_densities(j,:,i, T)/particle_counts(j)
+        r_densities(j,:,i) = r_densities(j,:,i)/particle_counts(j)
       end do
     end do
     
-  end subroutine radial_densities
+  end function radial_densities
 
 
   !--------------------------------------------------------------------!
