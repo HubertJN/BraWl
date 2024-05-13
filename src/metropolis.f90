@@ -55,6 +55,9 @@ module metropolis
   
     ! Name of file for writing radial densities at the end
     character(len=37) :: radial_file
+
+    ! Radial densities at each temperature step
+    real(real64), allocatable, dimension(:,:,:) :: r_densities
   
     ! Set up the lattice
     call initial_setup(setup, config)
@@ -71,6 +74,10 @@ module metropolis
       setup%mc_step => monte_carlo_step_lattice
     end if
 
+    ! Allocate memory for radial densities
+    allocate(r_densities(setup%n_species, setup%n_species, &
+                         setup%wc_range))
+
     if(my_rank == 0) then
       write(6,'(/,72("-"),/)')
       write(6,'(24("-"),x,"Commencing Simulation!",x,24("-"),/)')
@@ -80,7 +87,7 @@ module metropolis
     do j=1, setup%T_steps
   
       step_E = 0.0_real64; step_Esq=0.0_real64
-      acceptance = 0.0_real64
+      acceptance = 0.0_real64; r_densities = 0.0_real64
     
       ! Work out the temperature and corresponding beta
       temp = setup%T + real(j-1, real64)*setup%delta_T
@@ -110,15 +117,28 @@ module metropolis
   
         acceptance = acceptance + accept
 
-        ! Write percentage progress to screen
+        ! Store data for averaging if requested
         if (mod(i, setup%sample_steps) .eq. 0) then
+
+          ! Current energy
           current_energy = setup%full_energy(config)
+
+          ! Add this to total for averaging
           step_E   = step_E + current_energy
+
+          ! Add square to total for averaging
           step_Esq = step_Esq + current_energy**2
+
+          ! Add radial densities for averaging
+          r_densities = r_densities                     &
+                      + radial_densities(setup, config, &
+                                setup%wc_range, shells)
         end if
     
       end do
 
+      ! Store the average radial densities at this temperature
+      rho_of_T(:,:,:,j) = r_densities/n_save
   
       ! Store the average energy per atom at this temperature
       energies_of_T(j) = step_E/n_save/setup%n_atoms
@@ -148,7 +168,7 @@ module metropolis
       end if
   
       ! Compute the radial densities at the end of this temperature
-      call radial_densities(setup, config, setup%wc_range, shells, rho_of_T, j)
+      ! call radial_densities(setup, config, setup%wc_range, shells, rho_of_T, j)
   
       if (my_rank ==0) then
         ! Write that we have completed a particular temperature
