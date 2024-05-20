@@ -154,17 +154,19 @@ module metropolis
     
       ! Dump grids if needed
       if (setup%dump_grids) then
+         if (my_rank .le. 1) then
  !       write(grid_file, '(A11 I3.3 A11 I4.4 F2.1 A3)') 'grids/proc_', my_rank, '_grid_at_T_', &
  !                                            int(temp), temp-int(temp), '.nc'
-        write(xyz_file, '(A11 I3.3 A12 I4.4 F2.1 A4)') 'grids/proc_', &
-        my_rank, 'config_at_T_', int(temp), temp-int(temp),'.xyz'
+          write(xyz_file, '(A11 I3.3 A12 I4.4 F2.1 A4)') 'grids/proc_', &
+          my_rank, 'config_at_T_', int(temp), temp-int(temp),'.xyz'
   
-        ! Write xyz file
-        call xyz_writer(xyz_file, config, setup)
+          ! Write xyz file
+          call xyz_writer(xyz_file, config, setup)
   
  !       ! Write grid to file
  !       call ncdf_grid_state_writer(grid_file , ierr, &
  !                              config, temp, setup)
+        end if
       end if
   
       ! Compute the radial densities at the end of this temperature
