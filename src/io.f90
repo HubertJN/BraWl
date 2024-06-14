@@ -87,6 +87,7 @@ module io
     parameters%lro = .false.
     parameters%nbr_swap = .false.
     parameters%sample_steps = 1000
+    parameters%radial_sample_steps = 0
     parameters%burn_in = .false.
     parameters%dump_grids = .false.
     parameters%burn_in_steps = 1000
@@ -136,6 +137,8 @@ module io
           check(5) = .true.
         case ('sample_steps')  
           read(buffer, *, iostat=ios) parameters%sample_steps
+        case ('radial_sample_steps')
+          read(buffer, *, iostat=ios) parameters%radial_sample_steps
         case ('n_species')  
           read(buffer, *, iostat=ios) parameters%n_species
           check(6) = .true.
@@ -175,6 +178,10 @@ module io
     allocate(parameters%species_names(parameters%n_species))
     allocate(parameters%species_concentrations(0:parameters%n_species))
     allocate(parameters%species_numbers(parameters%n_species))
+
+    if (parameters%radial_sample_steps .lt. 1) then
+       parameters%radial_sample_steps = parameters%sample_steps
+    end if
 
     parameters%species_concentrations = 0.0_real64
     parameters%species_numbers = 0

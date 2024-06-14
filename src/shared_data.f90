@@ -47,8 +47,11 @@ module shared_data
     integer :: burn_in_steps
     ! Number of monte carlo steps (at each temperature if annealing)
     integer :: mc_steps
-    ! Number of monte carlo steps between drawing data
+    ! Number of monte carlo steps between drawing energies
     integer :: sample_steps
+    ! Number of monte carlo steps between drawing radial densities
+    ! (MUST be a multiple of sample_steps)
+    integer :: radial_sample_steps
     ! Fixed or time-based random seed
     integer :: seedtime=1
     ! Lattice type - name, e.g. fcc, bcc, hcp, ...
