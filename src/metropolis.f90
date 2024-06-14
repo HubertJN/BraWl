@@ -40,7 +40,7 @@ module metropolis
     type(run_params) :: setup
   
     ! Integers used in calculations
-    integer :: i,j, div_steps, accept, n_save !,ierr
+    integer :: i,j, div_steps, accept, n_save_energy, n_save_radial
     
     ! Temperature and temperature steps
     real(real64) :: beta, temp, sim_temp, current_energy, step_E,     &
@@ -64,7 +64,11 @@ module metropolis
 
     call lattice_shells(setup, shells, config)
 
-    n_save=floor(real(setup%mc_steps)/real(setup%sample_steps))
+    n_save_energy = floor(real(setup%mc_steps)/real(setup%sample_steps))
+
+    n_save_radial = floor(real(setup%mc_steps)                         &
+                          /real(setup%radial_sample_steps))
+
     div_steps = setup%mc_steps/1000
   
     ! Are we swapping neighbours or on the whole lattice?
@@ -129,22 +133,24 @@ module metropolis
           ! Add square to total for averaging
           step_Esq = step_Esq + current_energy**2
 
-          ! Add radial densities for averaging
-          r_densities = r_densities                     &
-                      + radial_densities(setup, config, &
-                                setup%wc_range, shells)
+          if (mod(i, setup%radial_sample_steps) .eq. 0) then
+            ! Add radial densities for averaging
+            r_densities = r_densities                     &
+                        + radial_densities(setup, config, &
+                                  setup%wc_range, shells)
+          end if
         end if
     
       end do
 
       ! Store the average radial densities at this temperature
-      rho_of_T(:,:,:,j) = r_densities/n_save
+      rho_of_T(:,:,:,j) = r_densities/n_save_radial
   
       ! Store the average energy per atom at this temperature
-      energies_of_T(j) = step_E/n_save/setup%n_atoms
+      energies_of_T(j) = step_E/n_save_energy/setup%n_atoms
   
       ! Heat capacity (per atom) at this temperature
-      C = (step_Esq/n_save - (step_E/n_save)**2)/(sim_temp*temp)/setup%n_atoms
+      C = (step_Esq/n_save_energy - (step_E/n_save_energy)**2)/(sim_temp*temp)/setup%n_atoms
 
       ! Acceptance rate at this temperature
       acceptance_of_T(j) = acceptance/real(setup%mc_steps)
@@ -233,7 +239,7 @@ module metropolis
     type(run_params) :: setup
   
     ! Integers used in calculations
-    integer :: i,j, div_steps, accept, n_save
+    integer :: i,j, div_steps, accept, n_save_energy_energy
     
     ! Temperature and temperature steps
     real(real64) :: beta, temp, sim_temp, current_energy, acceptance
@@ -246,7 +252,7 @@ module metropolis
 
     call lattice_shells(setup, shells, config)
 
-    n_save=floor(real(setup%mc_steps)/real(setup%sample_steps))
+    n_save_energy=floor(real(setup%mc_steps)/real(setup%sample_steps))
     div_steps = setup%mc_steps/1000
   
     ! Are we swapping neighbours or on the whole lattice?
