@@ -239,7 +239,7 @@ module metropolis
     type(run_params) :: setup
   
     ! Integers used in calculations
-    integer :: i,j, div_steps, accept, n_save_energy_energy
+    integer :: i,j, div_steps, accept, n_save_energy
     
     ! Temperature and temperature steps
     real(real64) :: beta, temp, sim_temp, current_energy, acceptance
