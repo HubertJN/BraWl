@@ -3,7 +3,7 @@
 !                                                                      !
 ! Module containing input/output routines.                             !
 !                                                                      !
-! C. D. Woodgate,  Warwick                                        2023 !
+! C. D. Woodgate,  Warwick                                        2024 !
 !----------------------------------------------------------------------!
 module io
 
@@ -65,7 +65,7 @@ module io
   !--------------------------------------------------------------------!
   ! Subroutine to parse control file                                   !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Warwick                                      2024 !
   !--------------------------------------------------------------------!
   subroutine read_control_file(filename, parameters, my_rank)
 
