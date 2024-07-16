@@ -37,7 +37,7 @@ ifeq ($(strip $(compiler)),gfortran)
 #  FFLAGS = -O0 -Wall -Wextra -fcheck=bounds
   FFLAGS = -O3
   FFLAGS += -I/usr/local/include -I$(OBJDIR) -J$(OBJDIR)
-  LDFLAGS=-lgcc
+  LDFLAGS=-lgcc -lopenblas
   CC=gcc -I$(INCDIR)
   CFLAGS=-O3
 endif
