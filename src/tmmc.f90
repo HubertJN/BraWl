@@ -2,12 +2,18 @@ module tmmc
     use kinds
     use shared_data
     use c_functions
+    use random_site
 
     implicit none
 
     contains
 
-    subroutine tmmc_main
+    subroutine tmmc_main(setup, my_rank)
+        ! Rank of this processor
+        integer, intent(in) :: my_rank
+
+        ! Arrays for storing data
+        type(run_params) :: setup
         !---------------------!
         ! setup sampling bins !
         !---------------------!
@@ -36,6 +42,8 @@ module tmmc
         tm = 0.0_real64; norm_tm = 0.0_real64
     
         call bias_from_tm(bias, statP, norm_tm, tm, gutter, bins, bin_edges, bin_width, temp)
+
+        print*, ' Test run'
     
     end subroutine tmmc_main    
 
