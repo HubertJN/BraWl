@@ -18,14 +18,14 @@ module tmmc
         type(run_params) :: setup
       
         ! Integers used in calculations
-        integer :: i,j, accept
+        integer :: i, accept
         
         ! Temperature and temperature steps
         real(real64) :: temp, acceptance, beta
       
         ! tmmc variables
         integer, parameter :: bins=50 ! Hard coded number of bins
-        integer :: num_weight_update, num_tmmc_sweeps
+        integer :: num_weight_update
         real(real64), dimension(2) :: energy_range
         real(real64), dimension((bins+1)) :: bin_edges
         real(real64) :: bin_width, bin_range
@@ -33,7 +33,7 @@ module tmmc
         real(real64), dimension(bins, bins) :: trans_matrix, norm_trans_matrix
     
         ! Set temperature
-        temp = setup%T
+        temp = setup%T*k_b_in_Ry
 
         ! Hard coded energy range for tmmc
         energy_range=(/-24.0_real64, 0.0_real64/)
@@ -41,8 +41,7 @@ module tmmc
         energy_range = energy_range*setup%n_atoms/(13.606_real64*1000)
 
         ! Hard coded number of weigh updates loops and tmmc sweeps
-        num_weight_update = 5
-        num_tmmc_sweeps = 50
+        num_weight_update = 50
 
         !---------------------------------!
         ! Initialise tmmc arrays and bins !
@@ -92,16 +91,11 @@ module tmmc
         !--------------------!
     
         do i=1, num_weight_update
-            acceptance=0
-            do j=1, num_tmmc_sweeps
-            ! tmmc sweep
             acceptance = run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix, gutter)
-            ! ask Chris later what he wants to do with acceptance
-            end do
-          call bias_from_tm(bias, statP, norm_trans_matrix, trans_matrix, gutter, bins, bin_edges, bin_width, temp)
-          if(my_rank == 0) then
-            write(6,'(24("-"),x,"Weight Update Complete!",x,23("-"),/)')
-          end if
+            call bias_from_tm(bias, statP, norm_trans_matrix, trans_matrix, gutter, bins, bin_edges, bin_width, temp)
+            if(my_rank == 0) then
+                write(6,'(24("-"),x,"Weight Update Complete!",x,23("-"),/)')
+            end if
         end do
 
         open(10,file="dens_stat_hist_bins.dat")
