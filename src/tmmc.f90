@@ -1,35 +1,52 @@
 module tmmc
+    use initialise
     use kinds
     use shared_data
     use c_functions
     use random_site
+    use metropolis
 
     implicit none
 
     contains
 
-    subroutine tmmc_main(setup, my_rank)
+    subroutine tmmc_main(setup, my_rank)   
         ! Rank of this processor
         integer, intent(in) :: my_rank
 
         ! Arrays for storing data
         type(run_params) :: setup
-        !---------------------!
-        ! setup sampling bins !
-        !---------------------!
-        integer, parameter :: bins=50
-        integer :: i
+      
+        ! Integers used in calculations
+        integer :: i,j, accept
+        
+        ! Temperature and temperature steps
+        real(real64) :: temp, acceptance, beta
+      
+        ! tmmc variables
+        integer, parameter :: bins=50 ! Hard coded number of bins
+        integer :: num_weight_update, num_tmmc_sweeps
         real(real64), dimension(2) :: energy_range
         real(real64), dimension((bins+1)) :: bin_edges
-        real(real64) :: bin_width, bin_range, temp
+        real(real64) :: bin_width, bin_range
         real(real64), dimension(bins) :: bias, histogram, gutter, statP
-        real(real64), dimension(bins, bins) :: tm, norm_tm
+        real(real64), dimension(bins, bins) :: trans_matrix, norm_trans_matrix
     
-        energy_range(1) = -6.1_real64
-        energy_range(2) = 4.0_real64
-    
-        temp = 601
-    
+        ! Set temperature
+        temp = setup%T
+
+        ! Hard coded energy range for tmmc
+        energy_range=(/-24.0_real64, 0.0_real64/)
+        ! Convert from meV/atom to Rydbergs
+        energy_range = energy_range*setup%n_atoms/(13.606_real64*1000)
+
+        ! Hard coded number of weigh updates loops and tmmc sweeps
+        num_weight_update = 5
+        num_tmmc_sweeps = 50
+
+        !---------------------------------!
+        ! Initialise tmmc arrays and bins !
+        !---------------------------------!
         bin_width = (energy_range(2) - energy_range(1))/real(bins)
     
         do i=1, bins+1
@@ -39,23 +56,80 @@ module tmmc
         bin_range = bin_edges(bins) - bin_edges(1)
     
         bias = 0.0_real64; histogram = 0.0_real64; gutter = 0.0_real64; statP = 0.0_real64
-        tm = 0.0_real64; norm_tm = 0.0_real64
-    
-        call bias_from_tm(bias, statP, norm_tm, tm, gutter, bins, bin_edges, bin_width, temp)
+        trans_matrix = 0.0_real64; norm_trans_matrix = 0.0_real64
+        !---------------------------------!
 
-        print*, ' Test run'
+        ! Set up the lattice
+        call initial_setup(setup, config)
+    
+        call lattice_shells(setup, shells, config)
+      
+        ! Are we swapping neighbours or on the whole lattice?
+        if (setup%nbr_swap) then
+          setup%mc_step => monte_carlo_step_nbr
+        else
+          setup%mc_step => monte_carlo_step_lattice
+        end if
+    
+        if(my_rank == 0) then
+          write(6,'(/,72("-"),/)')
+          write(6,'(24("-"),x,"Commencing Simulation!",x,24("-"),/)')
+        end if
+
+        !---------!
+        ! Burn in !
+        !---------!
+        beta = 1.0_real64/temp
+        if (setup%burn_in) then
+            do i=1, setup%burn_in_steps
+              ! Make one MC move
+              accept = setup%mc_step(config, beta)
+            end do 
+        end if
+
+        !--------------------!
+        ! Target Temperature !
+        !--------------------!
+    
+        do i=1, num_weight_update
+            acceptance=0
+            do j=1, num_tmmc_sweeps
+            ! tmmc sweep
+            acceptance = run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix, gutter)
+            ! ask Chris later what he wants to do with acceptance
+            end do
+          call bias_from_tm(bias, statP, norm_trans_matrix, trans_matrix, gutter, bins, bin_edges, bin_width, temp)
+          if(my_rank == 0) then
+            write(6,'(24("-"),x,"Weight Update Complete!",x,23("-"),/)')
+          end if
+        end do
+
+        open(10,file="dens_stat_hist_bins.dat")
+        do i=1, bins+1
+            write(10,'(51(f14.8,x))') bin_edges(i)
+        end do
+        close(10)
+
+        open(11,file="dens_stat_hist_prob.dat")
+        do i=1, bins
+            write(11,'(50(f14.8,x))') statP(i)
+        end do
+        close(11)
+
+        if(my_rank == 0) then
+          write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
+        end if
     
     end subroutine tmmc_main    
 
-    real function bin_index(energy, bin_edges, bins)
+    integer function bin_index(energy, bin_edges, bins) result(index)
         integer, intent(in) :: bins
         real(real64), intent(in) :: energy
         real(real64), dimension(:), intent(in) :: bin_edges
         real(real64) :: bin_range
 
         bin_range = bin_edges(bins) - bin_edges(1)
-        bin_index = int(((energy - bin_edges(1))/(bin_range))*real(bins))
-        return
+        index = int(((energy - bin_edges(1))/(bin_range))*real(bins))
     end function bin_index
 
     subroutine bias_from_tm(bias, statP, norm_tm, tm, gutter, bins, bin_edges, bin_width, temp)
@@ -141,7 +215,6 @@ module tmmc
 
         integer, dimension(4) :: rdm1, rdm2
         real(real64) :: e_swapped, e_unswapped, delta_e, beta, unswapped_bias, swapped_bias
-        integer(int16) :: site1, site2
         integer :: acceptance, i, ibin, jbin
 
         ! Store inverse temp
