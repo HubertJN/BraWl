@@ -25,29 +25,30 @@ module tmmc
         real(real64) :: temp, acceptance, beta
       
         ! tmmc variables
-        integer, parameter :: bins=400 ! Hard coded number of bins
+        integer, parameter :: bins=40 ! Hard coded number of bins
         integer :: num_weight_update
         real(real64), dimension(2) :: energy_range
-        real(real64), allocatable :: bin_edges(:), statP(:)
+        real(real64), allocatable :: bin_edges(:), statP(:), bin_visited(:)
         real(real64) :: bin_width, bin_range, bias_mean
         real(real64), dimension(bins) :: bias, histogram
         real(real64), allocatable :: trans_matrix(:,:), norm_trans_matrix(:,:)
 
         allocate(bin_edges(bins+1))
         allocate(statP(bins))
+        allocate(bin_visited(bins))
         allocate(trans_matrix(bins,bins))
         allocate(norm_trans_matrix(bins,bins))
     
         ! Set temperature
-        temp = setup%T*k_b_in_Ry
+        temp = setup%T!*k_b_in_Ry
 
         ! Hard coded energy range for tmmc
-        energy_range=(/-32.0_real64, 0.0_real64/)
+        energy_range=(/-1024.0_real64, 0.0_real64/)
         ! Convert from meV/atom to Rydbergs
-        energy_range = energy_range*setup%n_atoms/(eV_to_Ry*1000)
+        !energy_range = energy_range*setup%n_atoms/(eV_to_Ry*1000)
 
         ! Hard coded number of weigh updates loops and tmmc sweeps
-        num_weight_update = 5
+        num_weight_update = 10
 
         !---------------------------------!
         ! Initialise tmmc arrays and bins !
@@ -62,6 +63,7 @@ module tmmc
     
         bias = 0.0_real64; histogram = 0.0_real64; statP = 0.0_real64
         trans_matrix = 0.0_real64; norm_trans_matrix = 0.0_real64
+        bin_visited = 0.0_real64
         !---------------------------------!
 
         ! Set up the lattice
@@ -105,7 +107,7 @@ module tmmc
             if (i .eq. num_weight_update) then
                 bias_min = 0
             end if
-            acceptance = run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix)
+            acceptance = run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix, bin_visited)
             do j=1, bins
                 write(*,"(f12.4,x)", advance = "no") sum(trans_matrix(j,:))
                 if (mod(j,20) .eq. 0) then
@@ -141,7 +143,10 @@ module tmmc
 
         call ncdf_writer_1d("dens_stat_hist_prob.dat", ierr, statP)
 
+        call ncdf_writer_1d("visited_bins.dat", ierr, bin_visited)
+
         call ncdf_writer_2d("trans_matrix.dat", ierr, trans_matrix)
+        
         
         if(my_rank == 0) then
           write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
@@ -237,11 +242,12 @@ module tmmc
         bias = bias - min_bias
     end subroutine bias_from_tm
 
-    function run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix) result(acceptance)
+    function run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix, bin_visited) result(acceptance)
         Implicit None
         integer(int16), dimension(:,:,:,:) :: config
         class(run_params), intent(in) :: setup
         real(real64), dimension(:), intent(in) :: bias, bin_edges
+        real(real64), dimension(:), intent(inout) :: bin_visited
         real(real64) , intent(in) :: temp
         integer, intent(in) :: bins
 
@@ -272,6 +278,8 @@ module tmmc
 
             ibin = bin_index(e_unswapped, bin_edges, bins)
             jbin = bin_index(e_swapped, bin_edges, bins)
+
+            bin_visited(ibin) = bin_visited(ibin) + 1.0_real64
 
             ! Only compute energy change if within limits where V is defined
             if (jbin > 0 .and. jbin < bins+1) then
