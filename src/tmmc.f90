@@ -42,7 +42,7 @@ module tmmc
         temp = setup%T*k_b_in_Ry
 
         ! Hard coded energy range for tmmc
-        energy_range=(/-32.0_real64, -24.0_real64/)
+        energy_range=(/-32.0_real64, 0.0_real64/)
         ! Convert from meV/atom to Rydbergs
         energy_range = energy_range*setup%n_atoms/(eV_to_Ry*1000)
 
