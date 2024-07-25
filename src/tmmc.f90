@@ -10,7 +10,8 @@ module tmmc
 
     contains
 
-    subroutine tmmc_main(setup, my_rank)   
+    subroutine tmmc_main(setup, my_rank)
+        Implicit None   
         ! Rank of this processor
         integer, intent(in) :: my_rank
 
@@ -18,30 +19,35 @@ module tmmc
         type(run_params) :: setup
       
         ! Integers used in calculations
-        integer :: i, accept
+        integer :: i,j,k, ierr, accept, bias_min
         
         ! Temperature and temperature steps
         real(real64) :: temp, acceptance, beta
       
         ! tmmc variables
-        integer, parameter :: bins=50 ! Hard coded number of bins
+        integer, parameter :: bins=400 ! Hard coded number of bins
         integer :: num_weight_update
         real(real64), dimension(2) :: energy_range
-        real(real64), dimension((bins+1)) :: bin_edges
-        real(real64) :: bin_width, bin_range
-        real(real64), dimension(bins) :: bias, histogram, gutter, statP
-        real(real64), dimension(bins, bins) :: trans_matrix, norm_trans_matrix
+        real(real64), allocatable :: bin_edges(:), statP(:)
+        real(real64) :: bin_width, bin_range, bias_mean
+        real(real64), dimension(bins) :: bias, histogram
+        real(real64), allocatable :: trans_matrix(:,:), norm_trans_matrix(:,:)
+
+        allocate(bin_edges(bins+1))
+        allocate(statP(bins))
+        allocate(trans_matrix(bins,bins))
+        allocate(norm_trans_matrix(bins,bins))
     
         ! Set temperature
         temp = setup%T*k_b_in_Ry
 
         ! Hard coded energy range for tmmc
-        energy_range=(/-24.0_real64, 0.0_real64/)
+        energy_range=(/-32.0_real64, -24.0_real64/)
         ! Convert from meV/atom to Rydbergs
-        energy_range = energy_range*setup%n_atoms/(13.606_real64*1000)
+        energy_range = energy_range*setup%n_atoms/(eV_to_Ry*1000)
 
         ! Hard coded number of weigh updates loops and tmmc sweeps
-        num_weight_update = 50
+        num_weight_update = 5
 
         !---------------------------------!
         ! Initialise tmmc arrays and bins !
@@ -54,7 +60,7 @@ module tmmc
     
         bin_range = bin_edges(bins) - bin_edges(1)
     
-        bias = 0.0_real64; histogram = 0.0_real64; gutter = 0.0_real64; statP = 0.0_real64
+        bias = 0.0_real64; histogram = 0.0_real64; statP = 0.0_real64
         trans_matrix = 0.0_real64; norm_trans_matrix = 0.0_real64
         !---------------------------------!
 
@@ -75,6 +81,8 @@ module tmmc
           write(6,'(24("-"),x,"Commencing Simulation!",x,24("-"),/)')
         end if
 
+        print*, setup%n_atoms
+
         !---------!
         ! Burn in !
         !---------!
@@ -86,30 +94,55 @@ module tmmc
             end do 
         end if
 
+        print*, setup%full_energy(config)/(setup%n_atoms/(eV_to_Ry*1000))
+        write(*,*)
+
         !--------------------!
         ! Target Temperature !
         !--------------------!
-    
+        bias_min = 1 ! determines whether empty statP entries are filled with lowest probability
         do i=1, num_weight_update
-            acceptance = run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix, gutter)
-            call bias_from_tm(bias, statP, norm_trans_matrix, trans_matrix, gutter, bins, bin_edges, bin_width, temp)
+            if (i .eq. num_weight_update) then
+                bias_min = 0
+            end if
+            acceptance = run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix)
+            do j=1, bins
+                write(*,"(f12.4,x)", advance = "no") sum(trans_matrix(j,:))
+                if (mod(j,20) .eq. 0) then
+                    write(*,*)
+                end if
+            end do
+            bias_mean = sum(bias)/bins
+            call bias_from_tm(bias, statP, norm_trans_matrix, trans_matrix, bins, bin_edges, bin_width, temp, bias_min)
+            !do k=1, bins
+            !    write(*,"(f8.7,x)", advance = "no") bias(k)
+            !    if (mod(k,10) .eq. 0) then
+            !        write(*,*)
+            !    end if
+            !end do
             if(my_rank == 0) then
-                write(6,'(24("-"),x,"Weight Update Complete!",x,23("-"),/)')
+                write(6,'(a,i0,a,f6.2,a)',advance='yes') "Weight Update ", i, ": Accepted ", &
+                 (acceptance/setup%mc_steps*100.0), "% of Monte Carlo moves"
             end if
         end do
 
-        open(10,file="dens_stat_hist_bins.dat")
-        do i=1, bins+1
-            write(10,'(51(f14.8,x))') bin_edges(i)
-        end do
-        close(10)
+        write(*, *)
 
-        open(11,file="dens_stat_hist_prob.dat")
-        do i=1, bins
-            write(11,'(50(f14.8,x))') statP(i)
-        end do
-        close(11)
+        !do j=1, bins
+        !    do k=1, bins
+        !        write(*,"(f12.4,x)", advance = "no") norm_trans_matrix(j,k)
+        !        if (k .eq. bins) then
+        !           write(*,*)
+        !        end if
+        !    end do
+        !end do
 
+        call ncdf_writer_1d("dens_stat_hist_bins.dat", ierr, bin_edges)
+
+        call ncdf_writer_1d("dens_stat_hist_prob.dat", ierr, statP)
+
+        call ncdf_writer_2d("trans_matrix.dat", ierr, trans_matrix)
+        
         if(my_rank == 0) then
           write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
         end if
@@ -117,39 +150,44 @@ module tmmc
     end subroutine tmmc_main    
 
     integer function bin_index(energy, bin_edges, bins) result(index)
+        Implicit None
         integer, intent(in) :: bins
         real(real64), intent(in) :: energy
         real(real64), dimension(:), intent(in) :: bin_edges
         real(real64) :: bin_range
 
-        bin_range = bin_edges(bins) - bin_edges(1)
-        index = int(((energy - bin_edges(1))/(bin_range))*real(bins))
+        bin_range = bin_edges(bins+1) - bin_edges(1)
+        index = int(((energy - bin_edges(1))/(bin_range))*real(bins)) + 1
     end function bin_index
 
-    subroutine bias_from_tm(bias, statP, norm_tm, tm, gutter, bins, bin_edges, bin_width, temp)
+    subroutine bias_from_tm(bias, statP, norm_tm, tm, bins, bin_edges, bin_width, temp, bias_min)
+        Implicit None
         real(real64), dimension(:), intent(inout) :: bias, statP
-        real(real64), dimension(:), intent(in) :: gutter, bin_edges
+        real(real64), dimension(:), intent(in) :: bin_edges
         real(real64), dimension(:,:), intent(inout) :: norm_tm
         real(real64), dimension(:,:), intent(in) :: tm
         real(real64), intent(in) :: bin_width, temp
-        integer, intent(in) :: bins
+        integer, intent(in) :: bins, bias_min
 
-        integer, parameter :: lwmax=1000
+        integer, parameter :: lwmax=5000
         integer :: info, lwork
         real(real64), dimension(bins) :: wr, wi
         real(real64), dimension(lwmax) :: work
         real(real64), dimension(bins, bins) :: work_tm, vl, vr
+        logical, dimension(bins) :: max_mask
 
         integer :: i, ii
         real(real64) :: Pnorm, bin_energy, min_bias, mincount
         external :: dgeev
+
+        max_mask = .True.
 
         ! zero normalized transition matrix
         norm_tm = 0.0_real64
 
         ! Compute as appropriately normalised collection matrix
         do i=1, bins
-            Pnorm = sum(tm(:,i)) + gutter(i)
+            Pnorm = sum(tm(:,i))
             do ii=1, bins
                 if (Pnorm > 0.0_real64) then
                     norm_tm(ii,i) = tm(ii,i)/Pnorm
@@ -164,11 +202,11 @@ module tmmc
 
         ! query work space
         lwork = -1
-        call dgeev('N', 'V', bins, work_tm, bins, wr, wi, vl, bins, vr, bins, work, lwork, info)
+        call dgeev('V', 'V', bins, work_tm, bins, wr, wi, vl, bins, vr, bins, work, lwork, info)
         lwork = min(lwmax, int(work(1)))
 
         ! solve eigenproblem
-        call dgeev('N', 'V', bins, work_tm, bins, wr, wi, vl, bins, vr, bins, work, lwork, info)
+        call dgeev('V', 'V', bins, work_tm, bins, wr, wi, vl, bins, vr, bins, work, lwork, info)
 
         ! check convergence
         IF( info.gt.0 ) THEN
@@ -176,14 +214,16 @@ module tmmc
             STOP
         END IF
         
-        statP = abs(vr(:,maxloc(wr,1)))
+        statP = abs(vr(:,maxloc(wr,1, mask=max_mask)))
 
         ! In case there are bins for which we have no data (yet)
         ! replace zeros with minimum non-zero probability
-        mincount = minval(statP, MASK=(statP > 0.0_real64))
-        do i=1, bins
-            statP(i) = max(statP(i),mincount)
-        end do
+        if (bias_min .eq. 1) then
+            mincount = minval(statP, MASK=(statP > 0.0_real64))
+            do i=1, bins
+                statP(i) = max(statP(i),mincount)
+            end do
+        end if
         statP = statP/sum(statP)
         !--------------------------------------------------!
 
@@ -197,14 +237,14 @@ module tmmc
         bias = bias - min_bias
     end subroutine bias_from_tm
 
-    function run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix, gutter) result(acceptance)
+    function run_tmmc_sweeps(setup, config, temp, bins, bin_edges, bias, trans_matrix) result(acceptance)
+        Implicit None
         integer(int16), dimension(:,:,:,:) :: config
         class(run_params), intent(in) :: setup
         real(real64), dimension(:), intent(in) :: bias, bin_edges
         real(real64) , intent(in) :: temp
         integer, intent(in) :: bins
 
-        real(real64), dimension(:), intent(inout) :: gutter
         real(real64), dimension(:,:), intent(inout) :: trans_matrix
 
         integer, dimension(4) :: rdm1, rdm2
@@ -216,6 +256,8 @@ module tmmc
 
         ! Establish total energy before any moves
         e_unswapped = setup%full_energy(config)
+
+        acceptance = 0.0_real64
 
         do i=1, setup%mc_steps
     
@@ -231,11 +273,11 @@ module tmmc
             ibin = bin_index(e_unswapped, bin_edges, bins)
             jbin = bin_index(e_swapped, bin_edges, bins)
 
-            trans_matrix(ibin,ibin) = trans_matrix(ibin,ibin) + 1.0_real64 - min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
-
             ! Only compute energy change if within limits where V is defined
             if (jbin > 0 .and. jbin < bins+1) then
-    
+                trans_matrix(ibin,ibin) = trans_matrix(ibin,ibin) &
+                     + 1.0_real64 - min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
+
                 ! Probability of moving to jbin, ignoring bias
                 trans_matrix(jbin,ibin) = trans_matrix(jbin,ibin) + min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
 
@@ -252,9 +294,6 @@ module tmmc
                   call pair_swap(config, rdm1, rdm2)
                 end if
             else
-                ! Add the transition probability for leaving range of interest into gutter
-                gutter(ibin) = gutter(ibin) + min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
-    
                 ! reject and reset
                 call pair_swap(config, rdm1, rdm2)
             end if
