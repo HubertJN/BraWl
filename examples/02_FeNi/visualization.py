@@ -4,17 +4,15 @@ import math as m
 import netCDF4 as nc
 np.set_printoptions(suppress=True)
 
-filename = "dens_stat_hist_bins.dat"
+filename = "dos_bins.dat"
 bin_edges = nc.Dataset(filename)
 bin_edges = np.array(bin_edges["grid data"][:], dtype=np.float64)
 
-filename = "dens_stat_hist_prob.dat"
+filename = "dos_probability.dat"
 statP = nc.Dataset(filename)
 statP = np.array(statP["grid data"][:], dtype=np.float64)
 
-print(statP)
-
-filename = "visited_bins.dat"
+filename = "bin_probability.dat"
 visited_bins = nc.Dataset(filename)
 visited_bins = np.array(visited_bins["grid data"][:], dtype=np.float64)
 
@@ -46,7 +44,7 @@ plt.xlabel("Energy (Rydberg)")
 plt.ylabel("Number of visits")
 plt.show()
 
-bins = 50
+bins = 40
 bin_width_con = (bin_edges[-1] - bin_edges[0])/(bins)
 bin_edges_con = np.arange(bin_edges[0], bin_edges[-1]+bin_width_con, bin_width_con)
 
@@ -64,8 +62,6 @@ for i, edge in enumerate(bin_edges[:-1]):
 
 statP = statP_con/sum(statP_con)
 bin_edges = bin_edges_con
-
-print(statP)
 # ------------------------------------------------
 
 beta_o = 1.0/(kb_ry*orig_temp) # beta in eV
