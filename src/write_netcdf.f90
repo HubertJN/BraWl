@@ -480,6 +480,83 @@ module write_netcdf
 
   end subroutine ncdf_grid_states_writer
 
+  subroutine ncdf_writer_1d(filename, ierr, grid_data)
+
+    integer, parameter :: grid_ndims = 1
+
+    ! Data to write to file
+    real(real64), dimension(:), allocatable, intent(in) :: grid_data
+    ! Number of dimensions of my rho data
+    integer, dimension(grid_ndims) :: grid_sizes, grid_dim_ids
+
+    ! Names of my dimensions
+    character(len=1), dimension(grid_ndims) :: grid_dims=(/"x"/)
+
+    ! Filename to which to write
+    character(len=*), intent(in) :: filename
+
+    ! Variables used in writing process
+    integer :: ierr, file_id, i
+
+    ! Ids for variables
+    integer :: grid_id
+
+    ! Get the sizes of my incoming arrays
+    grid_sizes  = shape(grid_data)
+
+    !-------------------------------------------!
+    ! Create the file, overwriting if it exists !
+    !-------------------------------------------!
+    ierr = nf90_create(filename, nf90_clobber, file_id)
+    if (ierr /= nf90_noerr) then
+      print*, trim(nf90_strerror(ierr))
+      return
+    end if
+
+    !----------------------------------------!
+    ! Define the 2D variables and dimensions !
+    !----------------------------------------!
+    do i = 1, grid_ndims
+      ierr = nf90_def_dim(file_id, grid_dims(i), grid_sizes(i), grid_dim_ids(i))
+      if (ierr /= nf90_noerr) then
+        print*, trim(nf90_strerror(ierr))
+        return
+      end if
+    end do 
+
+    ! grid_data
+    ierr = nf90_def_var(file_id, "grid data", NF90_DOUBLE, grid_dim_ids, grid_id)
+    if (ierr /= nf90_noerr) then
+      print*, trim(nf90_strerror(ierr))
+      return
+    end if
+
+    !--------------------------!
+    ! Finish defining metadata !
+    !--------------------------!
+    ierr = nf90_enddef(file_id)
+    if (ierr /= nf90_noerr) then
+      print*, trim(nf90_strerror(ierr))
+      return
+    end if
+
+    ierr = nf90_put_var(file_id, grid_id, grid_data) 
+    if (ierr /= nf90_noerr) then
+      print*, trim(nf90_strerror(ierr))
+      return
+    end if
+
+    !----------------!
+    ! Close the file !
+    !----------------!
+    ierr = nf90_close(file_id)
+    if (ierr /= nf90_noerr) then
+      print*, trim(nf90_strerror(ierr))
+      return
+    end if
+
+  end subroutine ncdf_writer_1d
+
   subroutine ncdf_writer_2d(filename, ierr, grid_data)
 
     integer, parameter :: grid_ndims = 2

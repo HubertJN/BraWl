@@ -408,4 +408,89 @@ module io
 
   end subroutine read_ns_file
 
+  !--------------------------------------------------------------------!
+  ! Subroutine to read and parse nested tmmc control file              !
+  !                                                                    !
+  ! H. Naguszewski, Warwick                                       2024 !
+  !--------------------------------------------------------------------!
+  subroutine read_tmmc_file(filename, parameters)
+    character(len=*), intent(in) :: filename
+    logical, dimension(7) :: check
+    type(tmmc_params) :: parameters
+    character(len=100) :: buffer, label
+    integer :: line, pos, ios
+
+    check = .false.
+
+    ios=0; line=0
+
+    open(25, file=filename, iostat=ios)
+
+    if (ios .ne. 0) then
+      stop 'Could not parse tmmc input file. Aborting...'
+    end if
+
+    write(*,'(a)', advance='no') new_line('a')
+    print*, '###############################'
+    print*, '#  Parsing tmmc input file      #'
+    print*, '###############################'
+
+    print*, '# tmmc input file name: ', filename
+
+    do while (ios==0)
+
+      read(25, "(A)", iostat=ios) buffer
+
+      if(ios==0) then
+        line=line+1
+
+        pos = scan(buffer, '=')
+        label=buffer(1:pos-1)
+        buffer = buffer(pos+1:)
+
+        select case (label)
+        case ('burn_in')
+          read(buffer, *, iostat=ios) parameters%burn_in
+          print*, '# Read burn_in = ', parameters%burn_in
+          check(1) = .true.
+        case ('burn_in_sweeps')
+          read(buffer, *, iostat=ios) parameters%burn_in_sweeps
+          print*, '# Read burn_in_sweeps = ', parameters%burn_in_sweeps
+          check(2) = .true.
+        case ('mc_sweeps')
+          read(buffer, *, iostat=ios) parameters%mc_sweeps
+          print*, '# Read mc_sweeps = ', parameters%mc_sweeps
+          check(3) = .true.
+        case ('bins')
+          read(buffer, *, iostat=ios) parameters%bins
+          print*, '# Read bins = ', parameters%bins
+          check(4) = .true.
+        case ('weight_update')
+          read(buffer, *, iostat=ios) parameters%weight_update
+          print*, '# Read weight_update = ', parameters%weight_update
+          check(5) = .true.
+        case ('energy_min')
+          read(buffer, *, iostat=ios) parameters%energy_min
+          print*, '# Read energy_min = ', parameters%energy_min
+          check(6) = .true.
+        case ('energy_max')
+          read(buffer, *, iostat=ios) parameters%energy_max
+          print*, '# Read energy_max = ', parameters%energy_max
+          check(7) = .true.
+        case default
+          print*, '# Skipping invalid label'
+        end select
+      end if
+    end do
+
+    print*, '# Finished parsing tmmc input file #'
+    print*, '###############################', new_line('a')
+    close(25)
+
+    if (.not. any(check)) then
+      stop 'Missing parameter in tmmc input file'
+    end if
+
+  end subroutine read_tmmc_file
+
 end module io

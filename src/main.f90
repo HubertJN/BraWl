@@ -12,6 +12,7 @@ program main
   use shared_data
   use metropolis
   use nested_sampling
+  use tmmc
   use io
   use kinds
   use c_functions
@@ -75,6 +76,11 @@ program main
 
     ! Nested Sampling algorithm
     call nested_sampling_main(setup, ns_setup, my_rank)
+
+  else if (setup%mode == 304) then
+
+    ! Nested Sampling algorithm
+    call tmmc_main(setup, my_rank)
 
   else
 
