@@ -121,6 +121,28 @@ module shared_data
   end type ns_params
 
   !--------------------------------------------------------------------!
+  ! Type storing parameters defining tmmc simulation (used at runtime) !
+  !                                                                    !
+  ! H. Naguszewski,  Warwick                                      2024 !
+  !--------------------------------------------------------------------!
+  type tmmc_params
+    ! Burn in if doing simulated annealing?
+    logical :: burn_in
+    ! Number of burn-in sweeps (each sweep is n_atoms mc steps)
+    integer :: burn_in_sweeps
+    ! Number of tmmc sweeps (each sweep is n_atoms mc steps)
+    integer :: mc_sweeps
+    ! Number of bins across energy range
+    integer :: bins
+    ! Number of bias weight updates
+    integer :: weight_update
+    ! Energy range minimum
+    real :: energy_min
+    ! Energy range maximum
+    real :: energy_max
+  end type tmmc_params
+
+  !--------------------------------------------------------------------!
   ! Interface for neighbour implementation                             !
   !                                                                    !
   ! C. D. Woodgate,  Warwick                                      2023 !

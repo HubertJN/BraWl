@@ -37,7 +37,7 @@ ifeq ($(strip $(compiler)),gfortran)
 #  FFLAGS = -O0 -Wall -Wextra -fcheck=bounds
   FFLAGS = -O3
   FFLAGS += -I/usr/local/include -I$(OBJDIR) -J$(OBJDIR)
-  LDFLAGS=-lgcc
+  LDFLAGS=-lgcc -lopenblas
   CC=gcc -I$(INCDIR)
   CFLAGS=-O3
 endif
@@ -64,7 +64,7 @@ EXE=bontewarlo.run
 SRCFILES=mt19937ar.c kinds.f90 shared_data.f90 io.f90 comms.f90 write_netcdf.f90 write_xyz.f90 \
 	     write_diagnostics.f90 command_line.f90 c_functions.f90 display.f90 \
          energetics.f90 analytics.f90 random_site.f90 metropolis.f90 \
-	     nested_sampling.f90 initialise.f90 main.f90
+	     nested_sampling.f90 tmmc.f90 initialise.f90 main.f90
 
 OBJFILES:=$(SRCFILES:.f90=.o)
 OBJFILES:=$(OBJFILES:.c=.o)
