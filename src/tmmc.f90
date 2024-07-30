@@ -26,7 +26,7 @@ module tmmc
         real(real64) :: temp, acceptance, beta
       
         ! tmmc variables
-        real(real64), allocatable :: bin_edges(:), probability_dist(:), bin_visited(:), energy_bias(:)
+        real(real64), allocatable :: bin_edges(:), probability_dist(:), bin_probability(:), energy_bias(:)
         real(real64) :: bin_width, bin_range, energy_to_ry
         real(real64), allocatable :: trans_matrix(:,:), norm_trans_matrix(:,:)
 
@@ -36,7 +36,7 @@ module tmmc
         ! Allocate arrays
         allocate(bin_edges(tmmc_setup%bins+1))
         allocate(probability_dist(tmmc_setup%bins))
-        allocate(bin_visited(tmmc_setup%bins))
+        allocate(bin_probability(tmmc_setup%bins))
         allocate(trans_matrix(tmmc_setup%bins,tmmc_setup%bins))
         allocate(norm_trans_matrix(tmmc_setup%bins,tmmc_setup%bins))
         allocate(energy_bias(tmmc_setup%bins))
@@ -60,7 +60,7 @@ module tmmc
     
         energy_bias = 0.0_real64; probability_dist = 0.0_real64
         trans_matrix = 0.0_real64; norm_trans_matrix = 0.0_real64
-        bin_visited = 0.0_real64
+        bin_probability = 0.0_real64
         !---------------------------------!
 
         ! Set up the lattice
@@ -101,7 +101,7 @@ module tmmc
             if (i .eq. tmmc_setup%weight_update) then
                 bias_min = 0
             end if
-            acceptance = run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, trans_matrix, bin_visited)
+            acceptance = run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, trans_matrix, bin_probability)
             
             call bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, trans_matrix, &
             tmmc_setup%bins, bin_edges, bin_width, temp, bias_min)
@@ -113,16 +113,16 @@ module tmmc
         end do
 
         ! Normalize bins visited array
-        bin_visited = bin_visited/sum(bin_visited)
+        bin_probability = bin_probability/sum(bin_probability)
 
         write(*, *)
 
         ! Write output files
-        call ncdf_writer_1d("dens_stat_hist_bins.dat", ierr, bin_edges)
+        call ncdf_writer_1d("dos_bins.dat", ierr, bin_edges)
 
-        call ncdf_writer_1d("dens_stat_hist_prob.dat", ierr, probability_dist)
+        call ncdf_writer_1d("dos_probability.dat", ierr, probability_dist)
 
-        call ncdf_writer_1d("visited_bins.dat", ierr, bin_visited)
+        call ncdf_writer_1d("bin_probability.dat", ierr, bin_probability)
 
         call ncdf_writer_2d("trans_matrix.dat", ierr, trans_matrix)
         
@@ -222,13 +222,13 @@ module tmmc
         energy_bias = energy_bias - min_bias
     end subroutine bias_from_tm
 
-    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, trans_matrix, bin_visited) result(acceptance)
+    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, trans_matrix, bin_probability) result(acceptance)
         Implicit None
         integer(int16), dimension(:,:,:,:) :: config
         class(run_params), intent(in) :: setup
         class(tmmc_params), intent(in) :: tmmc_setup
         real(real64), dimension(:), intent(in) :: energy_bias, bin_edges
-        real(real64), dimension(:), intent(inout) :: bin_visited
+        real(real64), dimension(:), intent(inout) :: bin_probability
         real(real64) , intent(in) :: temp
 
         real(real64), dimension(:,:), intent(inout) :: trans_matrix
@@ -261,7 +261,7 @@ module tmmc
 
             ! Only compute energy change if within limits where V is defined
             if (jbin > 0 .and. jbin < tmmc_setup%bins+1) then
-                bin_visited(ibin) = bin_visited(ibin) + 1.0_real64
+                bin_probability(ibin) = bin_probability(ibin) + 1.0_real64
 
                 trans_matrix(ibin,ibin) = trans_matrix(ibin,ibin) &
                      + 1.0_real64 - min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
