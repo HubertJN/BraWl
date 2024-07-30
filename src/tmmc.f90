@@ -222,7 +222,8 @@ module tmmc
         energy_bias = energy_bias - min_bias
     end subroutine bias_from_tm
 
-    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, trans_matrix, bin_probability) result(acceptance)
+    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, &
+        trans_matrix, bin_probability) result(acceptance)
         Implicit None
         integer(int16), dimension(:,:,:,:) :: config
         class(run_params), intent(in) :: setup
