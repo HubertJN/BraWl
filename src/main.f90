@@ -29,6 +29,9 @@ program main
   ! Nested Sampling parameters type
   type(ns_params) :: ns_setup
 
+  ! Tmmc parameters type
+  type(tmmc_params) :: tmmc_setup
+
   ! Start MPI
   call comms_initialise()
 
@@ -79,8 +82,9 @@ program main
 
   else if (setup%mode == 304) then
 
-    ! Nested Sampling algorithm
-    call tmmc_main(setup, my_rank)
+    ! Tmmc algorithm
+    call read_tmmc_file("tmmc_input.txt", tmmc_setup, my_rank)
+    call tmmc_main(setup, tmmc_setup, my_rank)
 
   else
 
