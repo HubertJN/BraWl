@@ -140,6 +140,12 @@ module shared_data
     real :: energy_min
     ! Energy range maximum
     real :: energy_max
+    ! Use mpi?
+    logical :: use_mpi
+    ! How many mpi processes
+    integer :: mpi_processes
+    ! Percent overlap of tmmc matrices
+    real :: percent_overlap
   end type tmmc_params
 
   !--------------------------------------------------------------------!
