@@ -413,9 +413,10 @@ module io
   !                                                                    !
   ! H. Naguszewski, Warwick                                       2024 !
   !--------------------------------------------------------------------!
-  subroutine read_tmmc_file(filename, parameters)
+  subroutine read_tmmc_file(filename, parameters, my_rank)
+    integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(7) :: check
+    logical, dimension(10) :: check
     type(tmmc_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -430,12 +431,14 @@ module io
       stop 'Could not parse tmmc input file. Aborting...'
     end if
 
-    write(*,'(a)', advance='no') new_line('a')
-    print*, '###############################'
-    print*, '#  Parsing tmmc input file      #'
-    print*, '###############################'
+    if (my_rank == 0) then
+      write(*,'(a)', advance='no') new_line('a')
+      print*, '###############################'
+      print*, '#  Parsing tmmc input file      #'
+      print*, '###############################'
 
-    print*, '# tmmc input file name: ', filename
+      print*, '# tmmc input file name: ', filename
+    end if
 
     do while (ios==0)
 
@@ -451,40 +454,76 @@ module io
         select case (label)
         case ('burn_in')
           read(buffer, *, iostat=ios) parameters%burn_in
-          print*, '# Read burn_in = ', parameters%burn_in
+          if (my_rank == 0) then
+            print*, '# Read burn_in = ', parameters%burn_in
+          end if
           check(1) = .true.
         case ('burn_in_sweeps')
           read(buffer, *, iostat=ios) parameters%burn_in_sweeps
-          print*, '# Read burn_in_sweeps = ', parameters%burn_in_sweeps
+          if (my_rank == 0) then
+            print*, '# Read burn_in_sweeps = ', parameters%burn_in_sweeps
+          end if
           check(2) = .true.
         case ('mc_sweeps')
           read(buffer, *, iostat=ios) parameters%mc_sweeps
-          print*, '# Read mc_sweeps = ', parameters%mc_sweeps
+          if (my_rank == 0) then
+            print*, '# Read mc_sweeps = ', parameters%mc_sweeps
+          end if
           check(3) = .true.
         case ('bins')
           read(buffer, *, iostat=ios) parameters%bins
-          print*, '# Read bins = ', parameters%bins
+          if (my_rank == 0) then
+            print*, '# Read bins = ', parameters%bins
+          end if
           check(4) = .true.
         case ('weight_update')
           read(buffer, *, iostat=ios) parameters%weight_update
-          print*, '# Read weight_update = ', parameters%weight_update
+          if (my_rank == 0) then
+            print*, '# Read weight_update = ', parameters%weight_update
+          end if
           check(5) = .true.
         case ('energy_min')
           read(buffer, *, iostat=ios) parameters%energy_min
-          print*, '# Read energy_min = ', parameters%energy_min
+          if (my_rank == 0) then
+            print*, '# Read energy_min = ', parameters%energy_min
+          end if
           check(6) = .true.
         case ('energy_max')
           read(buffer, *, iostat=ios) parameters%energy_max
-          print*, '# Read energy_max = ', parameters%energy_max
+          if (my_rank == 0) then
+            print*, '# Read energy_max = ', parameters%energy_max
+          end if
           check(7) = .true.
+        case ('use_mpi')
+          read(buffer, *, iostat=ios) parameters%use_mpi
+          if (my_rank == 0) then
+            print*, '# Read use_mpi = ', parameters%use_mpi
+          end if
+          check(8) = .true.
+        case ('mpi_processes')
+          read(buffer, *, iostat=ios) parameters%mpi_processes
+          if (my_rank == 0) then
+            print*, '# Read mpi_processes = ', parameters%mpi_processes
+          end if
+          check(9) = .true.
+        case ('percent_overlap')
+          read(buffer, *, iostat=ios) parameters%percent_overlap
+          if (my_rank == 0) then
+            print*, '# Read percent_overlap = ', parameters%percent_overlap
+          end if
+          check(10) = .true.
         case default
-          print*, '# Skipping invalid label'
+          if (my_rank == 0) then
+            print*, '# Skipping invalid label'
+          end if
         end select
       end if
     end do
 
-    print*, '# Finished parsing tmmc input file #'
-    print*, '###############################', new_line('a')
+    if (my_rank == 0) then
+      print*, '# Finished parsing tmmc input file #'
+      print*, '###############################', new_line('a')
+    end if
     close(25)
 
     if (.not. any(check)) then
