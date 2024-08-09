@@ -5,58 +5,46 @@ module tmmc
     use c_functions
     use random_site
     use metropolis
+    use mpi
 
     implicit none
 
     contains
 
-    subroutine tmmc_main(setup, my_rank)
-        Implicit None   
+    subroutine tmmc_main(setup, tmmc_setup, my_rank) 
         ! Rank of this processor
         integer, intent(in) :: my_rank
+        integer :: ierror
 
         ! Arrays for storing data
         type(run_params) :: setup
         type(tmmc_params) :: tmmc_setup
       
         ! Integers used in calculations
-        integer :: i,j,k, ierr, accept, bias_min
+        integer :: i,j,k, ierr, accept, bias_min, bins
         
         ! Temperature and temperature steps
         real(real64) :: temp, acceptance, beta
       
-        ! tmmc variables
+        ! tmmc variables and arrays
+        real(real64) :: bin_width, energy_to_ry, target_energy
         real(real64), allocatable :: bin_edges(:), probability_dist(:), bin_probability(:), energy_bias(:)
-        real(real64) :: bin_width, bin_range, energy_to_ry
         real(real64), allocatable :: trans_matrix(:,:), norm_trans_matrix(:,:)
-
-        ! Load tmmc input file variables
-        call read_tmmc_file("tmmc_input.txt", tmmc_setup)
-      
-        ! Allocate arrays
-        allocate(bin_edges(tmmc_setup%bins+1))
-        allocate(probability_dist(tmmc_setup%bins))
-        allocate(bin_probability(tmmc_setup%bins))
-        allocate(trans_matrix(tmmc_setup%bins,tmmc_setup%bins))
-        allocate(norm_trans_matrix(tmmc_setup%bins,tmmc_setup%bins))
-        allocate(energy_bias(tmmc_setup%bins))
     
+        ! Allocate arrays and find number of bins
+        call tmmc_allocate_arrays(tmmc_setup, my_rank, bins, bin_edges, probability_dist, &
+        bin_probability, trans_matrix, norm_trans_matrix, energy_bias)
+
         ! Set temperature
         temp = setup%T*k_b_in_Ry
 
-        ! Convertion meV/atom to Rydberg
+        ! Conversion meV/atom to Rydberg
         energy_to_ry=setup%n_atoms/(eV_to_Ry*1000)
 
         !---------------------------------!
         ! Initialise tmmc arrays and bins !
         !---------------------------------!
-        bin_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(tmmc_setup%bins)*energy_to_ry
-    
-        do i=1, tmmc_setup%bins+1
-            bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i-1)*bin_width
-        end do
-
-        bin_range = bin_edges(tmmc_setup%bins) - bin_edges(1)
+        call tmmc_initialise_bins(tmmc_setup, energy_to_ry, my_rank, bins, bin_width, bin_edges, target_energy)
     
         energy_bias = 0.0_real64; probability_dist = 0.0_real64
         trans_matrix = 0.0_real64; norm_trans_matrix = 0.0_real64
@@ -78,19 +66,16 @@ module tmmc
         if(my_rank == 0) then
           write(6,'(/,72("-"),/)')
           write(6,'(24("-"),x,"Commencing Simulation!",x,24("-"),/)')
+          print*, "Number of atoms", setup%n_atoms
         end if
 
-        print*, "Number of atoms", setup%n_atoms
-
+    
         !---------!
         ! Burn in !
         !---------!
         beta = 1.0_real64/temp
         if (tmmc_setup%burn_in) then
-            do i=1, tmmc_setup%burn_in_sweeps*setup%n_atoms
-              ! Make one MC move
-              accept = setup%mc_step(config, beta)
-            end do 
+            call tmmc_burn_in(setup, tmmc_setup, config, temp, target_energy)
         end if
 
         !--------------------!
@@ -101,10 +86,11 @@ module tmmc
             if (i .eq. tmmc_setup%weight_update) then
                 bias_min = 0
             end if
-            acceptance = run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, trans_matrix, bin_probability)
+            acceptance = run_tmmc_sweeps(setup, tmmc_setup, config, temp, bins, &
+            bin_edges, energy_bias, trans_matrix, bin_probability)
             
             call bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, trans_matrix, &
-            tmmc_setup%bins, bin_edges, bin_width, temp, bias_min)
+            bins, bin_edges, bin_width, temp, bias_min)
 
             if(my_rank == 0) then
                 write(6,'(a,i0,a,f6.2,a)',advance='yes') "Weight Update ", i, ": Accepted ", &
@@ -112,29 +98,39 @@ module tmmc
             end if
         end do
 
+        
         ! Normalize bins visited array
         bin_probability = bin_probability/sum(bin_probability)
 
-        write(*, *)
+        ! Sync MPI threads
+        call comms_wait()
+
+        ! Merge transistion matrix and bins visited
+        if (my_rank /= 0) then
+            call MPI_Send(probability_dist, bins, mpi_real, 0, 0, MPI_COMM_WORLD, ierror)
+        end if
+
+        if (my_rank == 0) then
+            call MPI_Recv(probability_dist, bins, mpi_real, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
+        end if
 
         ! Write output files
-        call ncdf_writer_1d("dos_bins.dat", ierr, bin_edges)
+        !call ncdf_writer_1d("dos_bins.dat", ierr, bin_edges)
 
-        call ncdf_writer_1d("dos_probability.dat", ierr, probability_dist)
+        !call ncdf_writer_1d("dos_probability.dat", ierr, probability_dist)
 
-        call ncdf_writer_1d("bin_probability.dat", ierr, bin_probability)
+        !call ncdf_writer_1d("bin_probability.dat", ierr, bin_probability)
 
-        call ncdf_writer_2d("trans_matrix.dat", ierr, trans_matrix)
-        
+        !call ncdf_writer_2d("trans_matrix.dat", ierr, trans_matrix)
         
         if(my_rank == 0) then
-          write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
+            write(*, *)
+            write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
         end if
     
     end subroutine tmmc_main    
 
     integer function bin_index(energy, bin_edges, bins) result(index)
-        Implicit None
         integer, intent(in) :: bins
         real(real64), intent(in) :: energy
         real(real64), dimension(:), intent(in) :: bin_edges
@@ -146,7 +142,6 @@ module tmmc
 
     subroutine bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, &
         trans_matrix, bins, bin_edges, bin_width, temp, bias_min)
-        Implicit None
         real(real64), dimension(:), intent(inout) :: energy_bias, probability_dist
         real(real64), dimension(:), intent(in) :: bin_edges
         real(real64), dimension(:,:), intent(inout) :: norm_trans_matrix
@@ -222,16 +217,15 @@ module tmmc
         energy_bias = energy_bias - min_bias
     end subroutine bias_from_tm
 
-    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, &
+    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bins, bin_edges, energy_bias, &
         trans_matrix, bin_probability) result(acceptance)
-        Implicit None
         integer(int16), dimension(:,:,:,:) :: config
         class(run_params), intent(in) :: setup
         class(tmmc_params), intent(in) :: tmmc_setup
+        integer, intent(in) :: bins
         real(real64), dimension(:), intent(in) :: energy_bias, bin_edges
         real(real64), dimension(:), intent(inout) :: bin_probability
         real(real64) , intent(in) :: temp
-
         real(real64), dimension(:,:), intent(inout) :: trans_matrix
 
         integer, dimension(4) :: rdm1, rdm2
@@ -257,11 +251,11 @@ module tmmc
     
             e_swapped = setup%full_energy(config)
 
-            ibin = bin_index(e_unswapped, bin_edges, tmmc_setup%bins)
-            jbin = bin_index(e_swapped, bin_edges, tmmc_setup%bins)
+            ibin = bin_index(e_unswapped, bin_edges, bins)
+            jbin = bin_index(e_swapped, bin_edges, bins)
 
             ! Only compute energy change if within limits where V is defined
-            if (jbin > 0 .and. jbin < tmmc_setup%bins+1) then
+            if (jbin > 0 .and. jbin < bins+1) then
                 bin_probability(ibin) = bin_probability(ibin) + 1.0_real64
 
                 trans_matrix(ibin,ibin) = trans_matrix(ibin,ibin) &
@@ -290,4 +284,126 @@ module tmmc
 
     end function run_tmmc_sweeps
 
+    subroutine tmmc_burn_in(setup, tmmc_setup, config, temp, target_energy)
+        integer(int16), dimension(:,:,:,:) :: config
+        class(run_params), intent(in) :: setup
+        class(tmmc_params), intent(in) :: tmmc_setup
+        real(real64) , intent(in) :: temp, target_energy
+
+        integer, dimension(4) :: rdm1, rdm2
+        real(real64) :: e_swapped, e_unswapped, delta_e, beta
+        integer :: i
+
+        ! Store inverse temp
+        beta = 1.0_real64/temp
+
+        ! Establish total energy before any moves
+        e_unswapped = setup%full_energy(config)
+
+        do i=1, tmmc_setup%burn_in_sweeps*setup%n_atoms
+    
+            ! Make one MC trial
+            ! Generate random numbers
+            rdm1 = setup%rdm_site()
+            rdm2 = setup%rdm_site()
+
+            call pair_swap(config, rdm1, rdm2)
+    
+            e_swapped = setup%full_energy(config)
+
+            delta_e = e_swapped - e_unswapped
+
+            ! Accept or reject move
+            if (e_swapped > target_energy .and. delta_e < 0) then
+                e_unswapped = e_swapped
+            else if (e_swapped < target_energy .and. delta_e > 0) then
+                e_unswapped = e_swapped
+            else
+              call pair_swap(config, rdm1, rdm2)
+            end if
+        end do
+
+    end subroutine tmmc_burn_in
+
+    subroutine tmmc_allocate_arrays(tmmc_setup, my_rank, bins, bin_edges, probability_dist, &
+        bin_probability, trans_matrix, norm_trans_matrix, energy_bias)
+        class(tmmc_params), intent(in) :: tmmc_setup
+        real(real64), allocatable, intent(inout) :: bin_edges(:), probability_dist(:), bin_probability(:), energy_bias(:)
+        real(real64), allocatable, intent(inout) :: trans_matrix(:,:), norm_trans_matrix(:,:)
+        integer, intent(in) :: my_rank
+        integer, intent(inout) :: bins
+        real(real64) :: rank_bins_real
+
+        select case (tmmc_setup%use_mpi)
+        case (.true.)
+            rank_bins_real = tmmc_setup%bins/tmmc_setup%mpi_processes
+
+            if (my_rank == 0) then
+                rank_bins_real = rank_bins_real*(1+tmmc_setup%percent_overlap)
+            else if (my_rank == tmmc_setup%mpi_processes-1) then
+                rank_bins_real = rank_bins_real*(1+tmmc_setup%percent_overlap)
+            else
+                rank_bins_real = rank_bins_real*(1+tmmc_setup%percent_overlap*2)
+            end if
+            
+            bins = int(rank_bins_real)
+        case (.false.)
+            bins = tmmc_setup%bins
+        end select
+
+        allocate(bin_edges(bins+1))
+        allocate(probability_dist(bins))
+        allocate(bin_probability(bins))
+        allocate(trans_matrix(bins,bins))
+        allocate(norm_trans_matrix(bins,bins))
+        allocate(energy_bias(bins))
+    end subroutine tmmc_allocate_arrays
+
+    subroutine tmmc_initialise_bins(tmmc_setup, energy_to_ry, my_rank, bins, bin_width, bin_edges, target_energy)
+        class(tmmc_params), intent(in) :: tmmc_setup
+        integer, intent(in) :: my_rank, bins
+        real(real64), intent(in) :: energy_to_ry
+        real(real64), intent(inout) :: target_energy, bin_width
+        real(real64), intent(inout), dimension(:) :: bin_edges
+        real(real64) :: mpi_width
+        integer :: i
+
+        bin_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(tmmc_setup%bins)*energy_to_ry
+
+        select case (tmmc_setup%use_mpi)
+        case (.true.)
+            mpi_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(tmmc_setup%mpi_processes)*energy_to_ry
+            target_energy = tmmc_setup%energy_min*energy_to_ry + mpi_width*(my_rank + 0.5)
+
+            select case (my_rank)
+            case (0)
+                do i=1, bins+1
+                    bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i-1)*bin_width
+                end do
+            case default
+                do i=1, bins+1
+                    bin_edges(i) = tmmc_setup%energy_min*energy_to_ry &
+                    +mpi_width*(real(my_rank)-tmmc_setup%percent_overlap) + (i-1)*bin_width
+                end do
+            end select
+
+        case (.false.)
+            target_energy = (tmmc_setup%energy_min + (tmmc_setup%energy_max - tmmc_setup%energy_min)/2)*energy_to_ry
+
+            do i=1, tmmc_setup%bins+1
+                bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i-1)*bin_width
+            end do
+        end select
+    end subroutine tmmc_initialise_bins
+
+    subroutine tmmc_merge()
+        integer :: ierror
+
+        real(real64), allocatable :: probability_dist_buffer(:), probability_dist(:)
+        allocate(probability_dist_buffer(52))
+
+        call MPI_Send(probability_dist, 52, mpi_real, 0, 0, MPI_COMM_WORLD, ierror)
+        call MPI_Recv(probability_dist_buffer, 52, mpi_real, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
+        
+    end subroutine tmmc_merge
 end module tmmc
