@@ -11,10 +11,10 @@ module tmmc
 
     contains
 
-    subroutine tmmc_main(setup, tmmc_setup, my_rank) 
+    subroutine tmmc_main(setup, tmmc_setup, my_rank)
         ! Rank of this processor
         integer, intent(in) :: my_rank
-        integer :: ierror
+        integer :: ierror, num_proc
 
         ! Arrays for storing data
         type(run_params) :: setup
@@ -27,28 +27,46 @@ module tmmc
         real(real64) :: temp, acceptance, beta
       
         ! tmmc variables and arrays
-        real(real64) :: bin_width, energy_to_ry, target_energy
-        real(real64), allocatable :: bin_edges(:), probability_dist(:), bin_probability(:), energy_bias(:)
-        real(real64), allocatable :: trans_matrix(:,:), norm_trans_matrix(:,:)
-    
-        ! Allocate arrays and find number of bins
-        call tmmc_allocate_arrays(tmmc_setup, my_rank, bins, bin_edges, probability_dist, &
-        bin_probability, trans_matrix, norm_trans_matrix, energy_bias)
-
+        real(real64) :: bin_width, energy_to_ry, target_energy, mpi_width, start, end, flatness, time1, time2
+        real(real64), allocatable :: bin_edges(:), probability_dist(:), bin_probability(:), bin_probability_buffer(:), &
+        energy_bias(:)
+        real(real64), allocatable :: trans_matrix(:,:), norm_trans_matrix(:,:), trans_matrix_buffer(:,:)
+        
+        ! Allocate arrays
+        bins = tmmc_setup%bins
+        allocate(bin_edges(bins+1))
+        allocate(probability_dist(bins))
+        allocate(bin_probability(bins))
+        allocate(trans_matrix(bins,bins))
+        allocate(norm_trans_matrix(bins,bins))
+        allocate(energy_bias(bins))
+        if (my_rank == 0) then
+            allocate(trans_matrix_buffer(bins,bins))
+            allocate(bin_probability_buffer(bins))
+        end if
         ! Set temperature
         temp = setup%T*k_b_in_Ry
 
         ! Conversion meV/atom to Rydberg
         energy_to_ry=setup%n_atoms/(eV_to_Ry*1000)
 
+        ! Get number of MPI processes
+        call MPI_COMM_SIZE(MPI_COMM_WORLD, num_proc, ierror)
+        tmmc_setup%mc_sweeps = tmmc_setup%mc_sweeps/num_proc
+
         !---------------------------------!
         ! Initialise tmmc arrays and bins !
         !---------------------------------!
-        call tmmc_initialise_bins(tmmc_setup, energy_to_ry, my_rank, bins, bin_width, bin_edges, target_energy)
-    
+        mpi_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(num_proc)*energy_to_ry
+        target_energy = tmmc_setup%energy_min*energy_to_ry + mpi_width*(my_rank + 0.5)
+
+        bin_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(tmmc_setup%bins)*energy_to_ry
+        do i=1, bins+1
+            bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i-1)*bin_width
+        end do
+
         energy_bias = 0.0_real64; probability_dist = 0.0_real64
         trans_matrix = 0.0_real64; norm_trans_matrix = 0.0_real64
-        bin_probability = 0.0_real64
         !---------------------------------!
 
         ! Set up the lattice
@@ -62,14 +80,13 @@ module tmmc
         else
           setup%mc_step => monte_carlo_step_lattice
         end if
-    
+
         if(my_rank == 0) then
           write(6,'(/,72("-"),/)')
           write(6,'(24("-"),x,"Commencing Simulation!",x,24("-"),/)')
           print*, "Number of atoms", setup%n_atoms
         end if
 
-    
         !---------!
         ! Burn in !
         !---------!
@@ -83,45 +100,56 @@ module tmmc
         !--------------------!
         bias_min = 1 ! determines whether empty probability_dist entries are filled with lowest probability
         do i=1, tmmc_setup%weight_update
-            if (i .eq. tmmc_setup%weight_update) then
-                bias_min = 0
-            end if
+            start = MPI_Wtime()
+            bin_probability = 0.0_real64
             acceptance = run_tmmc_sweeps(setup, tmmc_setup, config, temp, bins, &
             bin_edges, energy_bias, trans_matrix, bin_probability)
-            
-            call bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, trans_matrix, &
-            bins, bin_edges, bin_width, temp, bias_min)
+            time1 = MPI_Wtime()
 
+            call MPI_REDUCE(trans_matrix, trans_matrix_buffer, bins*bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
+            call MPI_REDUCE(bin_probability, bin_probability_buffer, bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
+            if (my_rank == 0) then
+                flatness = minval(bin_probability_buffer)/(sum(bin_probability_buffer)/size(bin_probability_buffer))
+            end if
+            call MPI_Bcast(flatness, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierror)
+
+            if (flatness > 0.8) then
+                exit
+            end if
+
+            time2 = MPI_Wtime()
+            if (my_rank == 0) then
+                trans_matrix = trans_matrix_buffer
+                call bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, trans_matrix, &
+                bins, bin_edges, bin_width, temp, bias_min)
+            end if
+
+            call MPI_Bcast(energy_bias, bins, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierror)
+            end = MPI_Wtime()
             if(my_rank == 0) then
-                write(6,'(a,i0,a,f6.2,a)',advance='yes') "Weight Update ", i, ": Accepted ", &
-                 (acceptance/(tmmc_setup%mc_sweeps*setup%n_atoms)*100.0), "% of Monte Carlo moves"
+                write(6,'(a,i0,a,f6.2,a,f6.2,a)',advance='yes') "Weight Update ", i, ": Accepted ", &
+                 (acceptance/(tmmc_setup%mc_sweeps*setup%n_atoms)*100.0), "% of Monte Carlo moves. Time taken: ", end-start, "s"
+                write(6,'(a,f6.2,a,f6.2,a,f6.2,a)',advance='yes') "Monte Carlo time: ", time1-start, "s | Message Parsing:", &
+                 time2-time1, "s | Bias calculation time:", end-time2, "s"
             end if
         end do
-
         
-        ! Normalize bins visited array
-        bin_probability = bin_probability/sum(bin_probability)
-
-        ! Sync MPI threads
-        call comms_wait()
-
-        ! Merge transistion matrix and bins visited
-        if (my_rank /= 0) then
-            call MPI_Send(probability_dist, bins, mpi_real, 0, 0, MPI_COMM_WORLD, ierror)
-        end if
+        call MPI_REDUCE(bin_probability, bin_probability_buffer, bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
 
         if (my_rank == 0) then
-            call MPI_Recv(probability_dist, bins, mpi_real, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
+            bias_min = 0
+            call bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, trans_matrix, &
+            bins, bin_edges, bin_width, temp, bias_min)
+            ! Normalize bins visited array
+            bin_probability = bin_probability_buffer
+            bin_probability = bin_probability/sum(bin_probability)
+            ! Write output files
+            call ncdf_writer_1d("dos_bins.dat", ierr, bin_edges)
+
+            call ncdf_writer_1d("dos_probability.dat", ierr, probability_dist)
+
+            call ncdf_writer_1d("bin_probability.dat", ierr, bin_probability)
         end if
-
-        ! Write output files
-        !call ncdf_writer_1d("dos_bins.dat", ierr, bin_edges)
-
-        !call ncdf_writer_1d("dos_probability.dat", ierr, probability_dist)
-
-        !call ncdf_writer_1d("bin_probability.dat", ierr, bin_probability)
-
-        !call ncdf_writer_2d("trans_matrix.dat", ierr, trans_matrix)
         
         if(my_rank == 0) then
             write(*, *)
@@ -149,7 +177,7 @@ module tmmc
         real(real64), intent(in) :: bin_width, temp
         integer, intent(in) :: bins, bias_min
 
-        integer, parameter :: lwmax=5000
+        integer, parameter :: lwmax=8000
         integer :: info, lwork
         real(real64), dimension(bins) :: wr, wi
         real(real64), dimension(lwmax) :: work
@@ -157,7 +185,7 @@ module tmmc
         logical, dimension(bins) :: max_mask
 
         integer :: i, ii
-        real(real64) :: Pnorm, bin_energy, min_bias, mincount
+        real(real32) :: Pnorm, bin_energy, min_bias, mincount
         external :: dgeev
 
         max_mask = .True.
@@ -256,7 +284,6 @@ module tmmc
 
             ! Only compute energy change if within limits where V is defined
             if (jbin > 0 .and. jbin < bins+1) then
-                bin_probability(ibin) = bin_probability(ibin) + 1.0_real64
 
                 trans_matrix(ibin,ibin) = trans_matrix(ibin,ibin) &
                      + 1.0_real64 - min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
@@ -271,9 +298,11 @@ module tmmc
 
                 ! Accept or reject move
                 if (genrand() .lt. exp(-beta*delta_e)) then
+                    bin_probability(jbin) = bin_probability(jbin) + 1.0_real64
                     acceptance = acceptance + 1
                     e_unswapped = e_swapped
                 else
+                    bin_probability(ibin) = bin_probability(ibin) + 1.0_real64
                   call pair_swap(config, rdm1, rdm2)
                 end if
             else
@@ -322,88 +351,6 @@ module tmmc
               call pair_swap(config, rdm1, rdm2)
             end if
         end do
-
     end subroutine tmmc_burn_in
 
-    subroutine tmmc_allocate_arrays(tmmc_setup, my_rank, bins, bin_edges, probability_dist, &
-        bin_probability, trans_matrix, norm_trans_matrix, energy_bias)
-        class(tmmc_params), intent(in) :: tmmc_setup
-        real(real64), allocatable, intent(inout) :: bin_edges(:), probability_dist(:), bin_probability(:), energy_bias(:)
-        real(real64), allocatable, intent(inout) :: trans_matrix(:,:), norm_trans_matrix(:,:)
-        integer, intent(in) :: my_rank
-        integer, intent(inout) :: bins
-        real(real64) :: rank_bins_real
-
-        select case (tmmc_setup%use_mpi)
-        case (.true.)
-            rank_bins_real = tmmc_setup%bins/tmmc_setup%mpi_processes
-
-            if (my_rank == 0) then
-                rank_bins_real = rank_bins_real*(1+tmmc_setup%percent_overlap)
-            else if (my_rank == tmmc_setup%mpi_processes-1) then
-                rank_bins_real = rank_bins_real*(1+tmmc_setup%percent_overlap)
-            else
-                rank_bins_real = rank_bins_real*(1+tmmc_setup%percent_overlap*2)
-            end if
-            
-            bins = int(rank_bins_real)
-        case (.false.)
-            bins = tmmc_setup%bins
-        end select
-
-        allocate(bin_edges(bins+1))
-        allocate(probability_dist(bins))
-        allocate(bin_probability(bins))
-        allocate(trans_matrix(bins,bins))
-        allocate(norm_trans_matrix(bins,bins))
-        allocate(energy_bias(bins))
-    end subroutine tmmc_allocate_arrays
-
-    subroutine tmmc_initialise_bins(tmmc_setup, energy_to_ry, my_rank, bins, bin_width, bin_edges, target_energy)
-        class(tmmc_params), intent(in) :: tmmc_setup
-        integer, intent(in) :: my_rank, bins
-        real(real64), intent(in) :: energy_to_ry
-        real(real64), intent(inout) :: target_energy, bin_width
-        real(real64), intent(inout), dimension(:) :: bin_edges
-        real(real64) :: mpi_width
-        integer :: i
-
-        bin_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(tmmc_setup%bins)*energy_to_ry
-
-        select case (tmmc_setup%use_mpi)
-        case (.true.)
-            mpi_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(tmmc_setup%mpi_processes)*energy_to_ry
-            target_energy = tmmc_setup%energy_min*energy_to_ry + mpi_width*(my_rank + 0.5)
-
-            select case (my_rank)
-            case (0)
-                do i=1, bins+1
-                    bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i-1)*bin_width
-                end do
-            case default
-                do i=1, bins+1
-                    bin_edges(i) = tmmc_setup%energy_min*energy_to_ry &
-                    +mpi_width*(real(my_rank)-tmmc_setup%percent_overlap) + (i-1)*bin_width
-                end do
-            end select
-
-        case (.false.)
-            target_energy = (tmmc_setup%energy_min + (tmmc_setup%energy_max - tmmc_setup%energy_min)/2)*energy_to_ry
-
-            do i=1, tmmc_setup%bins+1
-                bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i-1)*bin_width
-            end do
-        end select
-    end subroutine tmmc_initialise_bins
-
-    subroutine tmmc_merge()
-        integer :: ierror
-
-        real(real64), allocatable :: probability_dist_buffer(:), probability_dist(:)
-        allocate(probability_dist_buffer(52))
-
-        call MPI_Send(probability_dist, 52, mpi_real, 0, 0, MPI_COMM_WORLD, ierror)
-        call MPI_Recv(probability_dist_buffer, 52, mpi_real, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
-        
-    end subroutine tmmc_merge
 end module tmmc
