@@ -416,7 +416,7 @@ module io
   subroutine read_tmmc_file(filename, parameters, my_rank)
     integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(10) :: check
+    logical, dimension(8) :: check
     type(tmmc_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -494,24 +494,12 @@ module io
             print*, '# Read energy_max = ', parameters%energy_max
           end if
           check(7) = .true.
-        case ('use_mpi')
-          read(buffer, *, iostat=ios) parameters%use_mpi
+        case ('bin_overlap')
+          read(buffer, *, iostat=ios) parameters%bin_overlap
           if (my_rank == 0) then
-            print*, '# Read use_mpi = ', parameters%use_mpi
+            print*, '# Read bin_overlap = ', parameters%bin_overlap
           end if
           check(8) = .true.
-        case ('mpi_processes')
-          read(buffer, *, iostat=ios) parameters%mpi_processes
-          if (my_rank == 0) then
-            print*, '# Read mpi_processes = ', parameters%mpi_processes
-          end if
-          check(9) = .true.
-        case ('percent_overlap')
-          read(buffer, *, iostat=ios) parameters%percent_overlap
-          if (my_rank == 0) then
-            print*, '# Read percent_overlap = ', parameters%percent_overlap
-          end if
-          check(10) = .true.
         case default
           if (my_rank == 0) then
             print*, '# Skipping invalid label'
