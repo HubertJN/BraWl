@@ -1,3 +1,9 @@
+!----------------------------------------------------------------------!
+! Transition Matrix Monte Carlo Module                                 !
+!                                                                      !
+! H. Naguszewski, Warwick                                         2024 !
+!----------------------------------------------------------------------!
+
 module tmmc
     use initialise
     use kinds
