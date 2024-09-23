@@ -1,11 +1,9 @@
 !----------------------------------------------------------------------!
-! tmmc.f90                                                             !
+! Transition Matrix Monte Carlo Module                                 !
 !                                                                      !
-! Module containing routines implementing transition-matrix Monte      !
-! Carlo (TMMC).                                                        !
-!                                                                      !
-! H. J. Naguszewski,  Warwick                                     2024 !
+! H. Naguszewski, Warwick                                         2024 !
 !----------------------------------------------------------------------!
+
 module tmmc
 
     use initialise
@@ -25,7 +23,7 @@ module tmmc
     !                                                                  !
     ! H. J. Naguszewski,  Warwick                                 2024 !
     !------------------------------------------------------------------!
-    subroutine tmmc_main(setup, my_rank)
+    subroutine tmmc_main(setup, tmmc_setup, my_rank)
 
         ! Rank of this processor
         integer, intent(in) :: my_rank
@@ -213,8 +211,7 @@ module tmmc
     !                                                                  !
     ! H. J. Naguszewski,  Warwick                                 2024 !
     !------------------------------------------------------------------!
-    function bin_index(energy, bin_edges, bins) result(index)
-
+    integer function bin_index(energy, bin_edges, bins) result(index)
         integer, intent(in) :: bins
         real(real64), intent(in) :: energy
         real(real64), dimension(:), intent(in) :: bin_edges
@@ -318,9 +315,8 @@ module tmmc
     !                                                                  !
     ! H. J. Naguszewski,  Warwick                                 2024 !
     !------------------------------------------------------------------!
-    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, &
-        trans_matrix, bin_probability) result(acceptance)
-        Implicit None
+    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bins, bin_edges, bins_mpi, &
+        bin_edges_mpi, energy_bias, trans_matrix, bin_probability) result(acceptance)
         integer(int16), dimension(:,:,:,:) :: config
         class(run_params), intent(in) :: setup
         class(tmmc_params), intent(in) :: tmmc_setup
