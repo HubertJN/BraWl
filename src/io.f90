@@ -528,7 +528,7 @@ module io
   subroutine read_wl_file(filename, parameters, my_rank)
     integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(8) :: check
+    logical, dimension(10) :: check
     type(wl_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -594,16 +594,16 @@ module io
             print*, '# Read tolerance = ', parameters%tolerance
           end if
           check(5) = .true.
-        case ('energy_min')
-          read(buffer, *, iostat=ios) parameters%energy_min
+        case ('flatness')
+          read(buffer, *, iostat=ios) parameters%flatness
           if (my_rank == 0) then
-            print*, '# Read energy_min = ', parameters%energy_min
+            print*, '# Read flatness = ', parameters%flatness
           end if
           check(6) = .true.
-        case ('energy_max')
-          read(buffer, *, iostat=ios) parameters%energy_max
+        case ('wl_f')
+          read(buffer, *, iostat=ios) parameters%wl_f
           if (my_rank == 0) then
-            print*, '# Read energy_max = ', parameters%energy_max
+            print*, '# Read wl_f = ', parameters%wl_f
           end if
           check(7) = .true.
         case ('bin_overlap')
@@ -612,6 +612,19 @@ module io
             print*, '# Read bin_overlap = ', parameters%bin_overlap
           end if
           check(8) = .true.
+        case ('energy_min')
+          read(buffer, *, iostat=ios) parameters%energy_min
+          if (my_rank == 0) then
+            print*, '# Read energy_min = ', parameters%energy_min
+          end if
+          check(9) = .true.
+        case ('energy_max')
+          read(buffer, *, iostat=ios) parameters%energy_max
+          if (my_rank == 0) then
+            print*, '# Read energy_max = ', parameters%energy_max
+          end if
+          check(10) = .true.
+
         case default
           if (my_rank == 0) then
             print*, '# Skipping invalid label'
