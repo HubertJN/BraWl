@@ -33,7 +33,7 @@ module wang_landau
       real(real64) :: temp, acceptance, beta, flatness
     
       ! wl variables and arrays
-      real(real64) :: bin_width, energy_to_ry, target_energy, wl_f, tolerance
+      real(real64) :: bin_width, energy_to_ry, target_energy, wl_f, tolerance, flatness_tolerance
       real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:)
       logical :: first_reset
 
@@ -58,7 +58,7 @@ module wang_landau
           bin_edges(i) = wl_setup%energy_min*energy_to_ry + (i-1)*bin_width
       end do
 
-      wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = 0.005_real64
+      wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = wl_setup%wl_f
       flatness = 0.0_real64; first_reset = .False.
       !---------------------------------!
 
@@ -93,6 +93,7 @@ module wang_landau
       !--------------------!
       j = 0
       tolerance = wl_setup%tolerance
+      flatness_tolerance = wl_setup%flatness
       do while (wl_f > tolerance)
         j = j + 1
         ! Start timer
@@ -103,18 +104,18 @@ module wang_landau
         flatness = 100.0_real64*minval(wl_hist, MASK=(wl_hist > 1e-8_real64))/(sum(wl_hist, MASK=(wl_hist > 1e-8_real64))&
         /count(MASK=(wl_hist > 1e-8_real64)))
 
-        if (j > 0) then
+        if (j > 0) then ! Arbitrary parameter choice for when Wang Landau process begins
     
-          if (first_reset .eqv. .False.) then
+          if (first_reset .eqv. .False.) then ! First reset after system had time to explore
             first_reset = .True.
             wl_hist = 0.0_real64
 
           else
             !Check if we're 80% flat
-            if (flatness > 80.0_real64) then
+            if (flatness > flatness_tolerance) then
                 !Reset the histogram
                 wl_f = wl_f * 0.5_real64
-                if (wl_f > tolerance) then
+                if (wl_f > tolerance) then ! Only reset if next while loop occurs
                   wl_hist = 0.0_real64
                 end if
   
@@ -131,7 +132,7 @@ module wang_landau
         if(my_rank == 0) then
             write(6,'(a,i0,a,f6.2,a,f8.6,a,f8.6,a,f6.2,a)', advance='no'), "Histogram Loop ", j, ": Flatness: ", &
             flatness, "% W-L F: ", min(wl_f*2, 0.005_real64), " Tolerance: ", tolerance, " Time taken:", end-start, "s"
-            if (flatness > 80.0_real64) then
+            if (flatness > flatness_tolerance) then
               write(6,'(a)', advance='no'), " Histogram reset"
               j = 0
             end if
