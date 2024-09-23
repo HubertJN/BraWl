@@ -160,7 +160,7 @@ module shared_data
     ! Number of bins across energy range
     integer :: bins
     ! Tolerance for wang landau
-    integer :: tolerance
+    real :: tolerance
     ! Energy range minimum
     real :: energy_min
     ! Energy range maximum
