@@ -549,7 +549,7 @@ module io
       print*, '# Parsing wang landau input file #'
       print*, '##################################'
 
-      print*, '# tmmc input file name: ', filename
+      print*, '# wang landau input file name: ', filename
     end if
 
     do while (ios==0)
