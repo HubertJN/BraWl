@@ -24,7 +24,7 @@ module wang_landau
 
       ! Arrays for storing data
       type(run_params) :: setup
-      type(tmmc_params) :: wl_setup
+      type(wl_params) :: wl_setup
     
       ! Integers used in calculations
       integer :: i,j,k, ierr, accept, bins
@@ -33,9 +33,12 @@ module wang_landau
       real(real64) :: temp, acceptance, beta, flatness
     
       ! wl variables and arrays
-      real(real64) :: bin_width, energy_to_ry, target_energy, wl_f
-      real(real64), allocatable :: bin_edges(:), wl_hist, wl_logdos
+      real(real64) :: bin_width, energy_to_ry, target_energy, wl_f, tolerance
+      real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:)
       logical :: first_reset
+
+      ! mpi variables
+      real(real64) :: start, end
 
       ! Allocate arrays
       bins = wl_setup%bins
@@ -55,7 +58,7 @@ module wang_landau
           bin_edges(i) = wl_setup%energy_min*energy_to_ry + (i-1)*bin_width
       end do
 
-      wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = 0.05_real64
+      wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = 0.005_real64
       flatness = 0.0_real64; first_reset = .False.
       !---------------------------------!
 
@@ -82,48 +85,65 @@ module wang_landau
       !---------!
       beta = 1.0_real64/temp
       if (wl_setup%burn_in) then
-          call wl_burn_in(setup, wl_setup, config, temp, target_energy, trans_matrix, bin_edges, bins)
+          call wl_burn_in(setup, wl_setup, config)
       end if
 
       !--------------------!
       ! Target Temperature !
       !--------------------!
-      do while (wl_f > wl_setup%tolerance)
-          acceptance = run_wl_sweeps(setup, wl_setup, config, bins, bin_edges, bins_mpi, &
-          bin_edges_mpi, wl_hist, wl_logdos, wl_f)
+      j = 0
+      tolerance = wl_setup%tolerance
+      do while (wl_f > tolerance)
+        j = j + 1
+        ! Start timer
+        start = mpi_wtime()
+        acceptance = run_wl_sweeps(setup, wl_setup, config, bins, bin_edges, &
+        wl_hist, wl_logdos, wl_f)
 
-          flatness = 100.0_real64*minval(wl_hist)/(sum(wl_hist)/size(wl_hist))
+        flatness = 100.0_real64*minval(wl_hist, MASK=(wl_hist > 1e-8_real64))/(sum(wl_hist, MASK=(wl_hist > 1e-8_real64))&
+        /count(MASK=(wl_hist > 1e-8_real64)))
 
-          if (minval(wl_hist) > 10.0_real64) then
+        if (j > 0) then
     
-            if (first_reset == .False.) then
-              first_reset = .True.
-              wl_hist = 0.0_real64
+          if (first_reset .eqv. .False.) then
+            first_reset = .True.
+            wl_hist = 0.0_real64
 
-            else
-              !Check if we're 80% flat
-              if flatness > 80.0_real64 then
-  
-                  !Reset the histogram
+          else
+            !Check if we're 80% flat
+            if (flatness > 80.0_real64) then
+                !Reset the histogram
+                wl_f = wl_f * 0.5_real64
+                if (wl_f > tolerance) then
                   wl_hist = 0.0_real64
-                  wl_f = wl_f * 0.5_real64
+                end if
   
-                  !Reduce f
-                  wl_logdos = wl_logdos - minval(wl_logdos)
-              end if
+                !Reduce f
+                wl_logdos = wl_logdos - minval(wl_logdos, MASK=(wl_logdos > 1e-8_real64))
+                wl_logdos = wl_logdos * merge(0, 1, wl_logdos < 0.0_real64)
             end if
-
-          if(my_rank == 0) then
-              write(6,'(a,i0,a,f6.2,a,f6.2,a)',advance='yes') "Weight Update ", i, ": Accepted ", &
-               (acceptance/(wl_setup%mc_sweeps*setup%n_atoms)*100.0), "% of Monte Carlo moves. Time taken: ", end-start, "s"
           end if
+        end if
+
+        ! End timer
+        end = mpi_wtime()
+
+        if(my_rank == 0) then
+            write(6,'(a,i0,a,f6.2,a,f8.6,a,f8.6,a,f6.2,a)', advance='no'), "Histogram Loop ", j, ": Flatness: ", &
+            flatness, "% W-L F: ", min(wl_f*2, 0.005_real64), " Tolerance: ", tolerance, " Time taken:", end-start, "s"
+            if (flatness > 80.0_real64) then
+              write(6,'(a)', advance='no'), " Histogram reset"
+              j = 0
+            end if
+            write(*,*)
+        end if
       end do
       
       if (my_rank == 0) then
-          ! Write output files
-          call ncdf_writer_1d("wl_dos_bins.dat", ierr, bin_edges)
-
-          call ncdf_writer_1d("wl_dos.dat", ierr, wl_dos)
+        ! Write output files
+        call ncdf_writer_1d("wl_dos_bins.dat", ierr, bin_edges)
+        call ncdf_writer_1d("wl_dos.dat", ierr, wl_logdos)
+        call ncdf_writer_1d("wl_hist.dat", ierr, wl_hist)
       end if
       
       if(my_rank == 0) then
@@ -143,19 +163,19 @@ module wang_landau
       index = int(((energy - bin_edges(1))/(bin_range))*real(bins)) + 1
   end function bin_index
 
-  function run_wl_sweeps(setup, wl_setup, config, bins, bin_edges, bins_mpi, &
-      bin_edges_mpi, wl_hist, wl_logdos, wl_f) result(acceptance)
+  function run_wl_sweeps(setup, wl_setup, config, bins, bin_edges, &
+      wl_hist, wl_logdos, wl_f) result(acceptance)
       integer(int16), dimension(:,:,:,:) :: config
       class(run_params), intent(in) :: setup
-      class(tmmc_params), intent(in) :: wl_setup
-      integer, intent(in) :: bins, bins_mpi
-      real(real64), dimension(:), intent(in) :: bin_edges, bin_edges_mpi
+      class(wl_params), intent(in) :: wl_setup
+      integer, intent(in) :: bins
+      real(real64), dimension(:), intent(in) :: bin_edges
       real(real64), dimension(:), intent(inout) :: wl_hist, wl_logdos
-      real(real64) , intent(in) :: temp, wl_f
+      real(real64), intent(in) :: wl_f
 
       integer, dimension(4) :: rdm1, rdm2
       real(real64) :: e_swapped, e_unswapped, delta_e
-      integer :: acceptance, i, ibin, jbin, ibin_mpi, jbin_mpi
+      integer :: acceptance, i, ibin, jbin
 
       ! Establish total energy before any moves
       e_unswapped = setup%full_energy(config)
@@ -176,27 +196,20 @@ module wang_landau
           ibin = bin_index(e_unswapped, bin_edges, bins)
           jbin = bin_index(e_swapped, bin_edges, bins)
 
-          ibin_mpi = bin_index(e_unswapped, bin_edges_mpi, bins_mpi)
-          jbin_mpi = bin_index(e_swapped, bin_edges_mpi, bins_mpi)
-
           ! Only compute energy change if within limits where V is defined
           if (jbin > 0 .and. jbin < bins+1) then
-              ! Only compute move if within mpi bin energy range
-              if (jbin_mpi > 0 .and. jbin_mpi < bins_mpi+1) then
-                  ! Add change in V into diff_energy
-                  delta_e = e_swapped - e_unswapped
+                ! Add change in V into diff_energy
+                delta_e = e_swapped - e_unswapped
 
-                  ! Accept or reject move
-                  if (genrand() .lt. m.exp(wl_logdos[ibin]-wl_logdos[jbin])) then
-                      acceptance = acceptance + 1
-                      e_unswapped = e_swapped
-                  else
-                      call pair_swap(config, rdm1, rdm2)
-                  end if
-              else
-                  call pair_swap(config, rdm1, rdm2)
-              end if
-              wl_hist(ibin) = wl_hist(ibin) + 1
+                ! Accept or reject move
+                if (genrand() .lt. exp(wl_logdos(ibin)-wl_logdos(jbin))) then
+                    acceptance = acceptance + 1
+                    e_unswapped = e_swapped
+                else
+                    call pair_swap(config, rdm1, rdm2)
+                    jbin = ibin
+                end if
+              wl_hist(ibin) = wl_hist(ibin) + 1.0_real64
               wl_logdos(jbin) = wl_logdos(jbin) + wl_f
           else
               ! reject and reset
@@ -206,15 +219,14 @@ module wang_landau
 
   end function run_wl_sweeps
 
-  subroutine wl_burn_in(setup, wl_setup, config, temp, bin_edges, bins)
+  subroutine wl_burn_in(setup, wl_setup, config)
       integer(int16), dimension(:,:,:,:) :: config
       class(run_params), intent(in) :: setup
-      class(tmmc_params), intent(in) :: wl_setup
-      real(real64) , intent(in) :: temp
+      class(wl_params), intent(in) :: wl_setup
 
       integer, dimension(4) :: rdm1, rdm2
       real(real64) :: e_swapped, e_unswapped, delta_e, beta
-      integer :: i, ibin, jbin
+      integer :: i
 
       ! Establish total energy before any moves
       e_unswapped = setup%full_energy(config)
@@ -228,9 +240,6 @@ module wang_landau
           call pair_swap(config, rdm1, rdm2)
   
           e_swapped = setup%full_energy(config)
-
-          ibin = bin_index(e_unswapped, bin_edges, bins)
-          jbin = bin_index(e_swapped, bin_edges, bins)
 
           delta_e = e_swapped - e_unswapped
 
