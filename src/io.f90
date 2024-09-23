@@ -3,7 +3,7 @@
 !                                                                      !
 ! Module containing input/output routines.                             !
 !                                                                      !
-! C. D. Woodgate,  Warwick                                        2023 !
+! C. D. Woodgate,  Warwick                                        2024 !
 !----------------------------------------------------------------------!
 module io
 
@@ -30,7 +30,7 @@ module io
     call date_and_time(date=date,time=time)
 
     write(6,'(/,72("="))')
-    write(6,'(18x,"Bonte Warlo Version 0.1.2, 08.01.24")')
+    write(6,'(18x,"Bonte Warlo Version 0.2.1, 18.07.24")')
     write(6,'(72("-"))')
 
     if (point .eq. 's') then
@@ -65,7 +65,7 @@ module io
   !--------------------------------------------------------------------!
   ! Subroutine to parse control file                                   !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Warwick                                      2024 !
   !--------------------------------------------------------------------!
   subroutine read_control_file(filename, parameters, my_rank)
 

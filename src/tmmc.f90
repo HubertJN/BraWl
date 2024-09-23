@@ -1,10 +1,13 @@
 !----------------------------------------------------------------------!
-! Transition Matrix Monte Carlo Module                                 !
+! tmmc.f90                                                             !
 !                                                                      !
-! H. Naguszewski, Warwick                                         2024 !
+! Module containing routines implementing transition-matrix Monte      !
+! Carlo (TMMC).                                                        !
+!                                                                      !
+! H. J. Naguszewski,  Warwick                                     2024 !
 !----------------------------------------------------------------------!
-
 module tmmc
+
     use initialise
     use kinds
     use shared_data
@@ -17,7 +20,13 @@ module tmmc
 
     contains
 
-    subroutine tmmc_main(setup, tmmc_setup, my_rank)
+    !------------------------------------------------------------------!
+    ! Main TMMC routine.                                               !
+    !                                                                  !
+    ! H. J. Naguszewski,  Warwick                                 2024 !
+    !------------------------------------------------------------------!
+    subroutine tmmc_main(setup, my_rank)
+
         ! Rank of this processor
         integer, intent(in) :: my_rank
         integer :: ierror, num_proc
@@ -100,7 +109,6 @@ module tmmc
         energy_bias = 0.0_real64; probability_dist = 0.0_real64
         trans_matrix = 0.0_real64; norm_trans_matrix = 0.0_real64
         bin_probability = 0.0_real64
-        !---------------------------------!
 
         ! Set up the lattice
         call initial_setup(setup, config)
@@ -200,16 +208,28 @@ module tmmc
     
     end subroutine tmmc_main    
 
-    integer function bin_index(energy, bin_edges, bins) result(index)
+    !------------------------------------------------------------------!
+    ! Routine for obtaining index of particular bin.                   !
+    !                                                                  !
+    ! H. J. Naguszewski,  Warwick                                 2024 !
+    !------------------------------------------------------------------!
+    function bin_index(energy, bin_edges, bins) result(index)
+
         integer, intent(in) :: bins
         real(real64), intent(in) :: energy
         real(real64), dimension(:), intent(in) :: bin_edges
         real(real64) :: bin_range
 
         bin_range = bin_edges(bins+1) - bin_edges(1)
-        index = int(((energy - bin_edges(1))/(bin_range))*real(bins)) + 1
+        index = int(((energy - bin_edges(1))/(bin_range))*real(bins)) &
+                + 1
     end function bin_index
 
+    !------------------------------------------------------------------!
+    ! Routine for constructing the bias from the transition matrix.    !
+    !                                                                  !
+    ! H. J. Naguszewski,  Warwick                                 2024 !
+    !------------------------------------------------------------------!
     subroutine bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, &
         trans_matrix, bins, bin_edges, bin_width, beta, bias_min)
         real(real64), dimension(:), intent(inout) :: energy_bias, probability_dist
@@ -245,18 +265,21 @@ module tmmc
             end do
         end do
 
-        !--------------------------------------------------!
+        !-------------------------------------------------------------!
         ! Find the dominant eigenvector and store as probability_dist !
-        !--------------------------------------------------!
+        !-------------------------------------------------------------!
         work_tm = norm_trans_matrix
 
         ! query work space
         lwork = -1
-        call dgeev('V', 'V', bins, work_tm, bins, wr, wi, vl, bins, vr, bins, work, lwork, info)
+        call dgeev('V', 'V', bins, work_tm, bins, wr, wi, vl, bins,   &
+                   vr, bins, work, lwork, info)
+
         lwork = min(lwmax, int(work(1)))
 
         ! solve eigenproblem
-        call dgeev('V', 'V', bins, work_tm, bins, wr, wi, vl, bins, vr, bins, work, lwork, info)
+        call dgeev('V', 'V', bins, work_tm, bins, wr, wi, vl, bins,   &
+                   vr, bins, work, lwork, info)
 
         ! check convergence
         IF( info.gt.0 ) THEN
@@ -269,15 +292,18 @@ module tmmc
         ! In case there are bins for which we have no data (yet)
         ! replace zeros with minimum non-zero probability
         if (bias_min .eq. 1) then
-            mincount = minval(probability_dist, MASK=(probability_dist > 0.0_real64))
+            mincount = minval(probability_dist,                       &
+                              MASK=(probability_dist > 0.0_real64))
+
             do i=1, bins
                 probability_dist(i) = max(probability_dist(i),mincount)
             end do
         end if
-        probability_dist = probability_dist/sum(probability_dist)
-        !--------------------------------------------------!
 
-        ! Construct energy_bias function needed for uniform energy sampling
+        probability_dist = probability_dist/sum(probability_dist)
+
+        ! Construct energy_bias function needed for uniform energy 
+        ! sampling
         do i=1, bins
             bin_energy = bin_edges(i) + 0.5*bin_width
             energy_bias(i) = log(probability_dist(i))/beta
@@ -287,8 +313,14 @@ module tmmc
         energy_bias = energy_bias - min_bias
     end subroutine bias_from_tm
 
-    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bins, bin_edges, bins_mpi, &
-        bin_edges_mpi, energy_bias, trans_matrix, bin_probability) result(acceptance)
+    !------------------------------------------------------------------!
+    ! Routine to run TMMC sweeps.                                      !
+    !                                                                  !
+    ! H. J. Naguszewski,  Warwick                                 2024 !
+    !------------------------------------------------------------------!
+    function run_tmmc_sweeps(setup, tmmc_setup, config, temp, bin_edges, energy_bias, &
+        trans_matrix, bin_probability) result(acceptance)
+        Implicit None
         integer(int16), dimension(:,:,:,:) :: config
         class(run_params), intent(in) :: setup
         class(tmmc_params), intent(in) :: tmmc_setup
@@ -334,7 +366,8 @@ module tmmc
                      + 1.0_real64 - min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
 
                 ! Probability of moving to jbin, ignoring energy_bias
-                trans_matrix(jbin,ibin) = trans_matrix(jbin,ibin) + min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
+                trans_matrix(jbin,ibin) = trans_matrix(jbin,ibin)     &
+                + min(1.0_real64, exp(-beta*(e_swapped - e_unswapped)))
 
                 ! Only compute move if within mpi bin energy range
                 if (jbin_mpi > 0 .and. jbin_mpi < bins_mpi+1) then
