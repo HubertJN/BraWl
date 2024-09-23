@@ -140,7 +140,39 @@ module shared_data
     real :: energy_min
     ! Energy range maximum
     real :: energy_max
+    ! Number of bins in the overlap region
+    integer :: bin_overlap
   end type tmmc_params
+
+  !--------------------------------------------------------------------!
+  ! Type storing parameters defining wang landau simulation            !
+  !  (used at runtime)                                                 !
+  !                                                                    !
+  ! H. Naguszewski,  Warwick                                      2024 !
+  !--------------------------------------------------------------------!
+  type wl_params
+    ! Burn in if doing simulated annealing?
+    logical :: burn_in
+    ! Number of burn-in sweeps (each sweep is n_atoms mc steps)
+    integer :: burn_in_sweeps
+    ! Number of tmmc sweeps (each sweep is n_atoms mc steps)
+    integer :: mc_sweeps
+    ! Number of bins across energy range
+    integer :: bins
+    ! Tolerance for wang landau
+    real :: tolerance
+    ! Flatness for wang landau histogram
+    real :: flatness
+    ! Wang Landau density of states histogram tuning parameter
+    real :: wl_f
+    ! Number of bins in the overlap region
+    integer :: bin_overlap
+    ! Energy range minimum
+    real :: energy_min
+    ! Energy range maximum
+    real :: energy_max
+
+  end type wl_params
 
   !--------------------------------------------------------------------!
   ! Interface for neighbour implementation                             !
