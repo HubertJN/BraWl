@@ -161,12 +161,17 @@ module shared_data
     integer :: bins
     ! Tolerance for wang landau
     real :: tolerance
+    ! Flatness for wang landau histogram
+    real :: flatness
+    ! Wang Landau density of states histogram tuning parameter
+    real :: wl_f
+    ! Number of bins in the overlap region
+    integer :: bin_overlap
     ! Energy range minimum
     real :: energy_min
     ! Energy range maximum
     real :: energy_max
-    ! Number of bins in the overlap region
-    integer :: bin_overlap
+
   end type wl_params
 
   !--------------------------------------------------------------------!
