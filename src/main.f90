@@ -13,6 +13,7 @@ program main
   use metropolis
   use nested_sampling
   use tmmc
+  use wang_landau
   use io
   use kinds
   use c_functions
