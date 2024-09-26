@@ -62,6 +62,8 @@ print(wl_logdos)
 wl_logdos = np.log(wl_logdos_con)
 bin_edges = bin_edges_con
 print(wl_logdos)
+plt.plot(np.exp(wl_logdos))
+plt.show()
 # ------------------------------------------------
 
 bin_width = bin_edges[1] - bin_edges[0]
