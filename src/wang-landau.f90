@@ -20,7 +20,7 @@ module wang_landau
   subroutine wl_main(setup, wl_setup, my_rank)
       ! Rank of this processor
       integer, intent(in) :: my_rank
-      integer :: ierror, num_proc
+      integer :: ierror, errcode, num_proc
 
       ! Arrays for storing data
       type(run_params) :: setup
@@ -39,9 +39,14 @@ module wang_landau
       real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:)
       logical :: first_reset, hist_reset
 
+      ! window variables
+      integer, allocatable :: window_indices(:,:)
+      integer :: num_windows
+      real(real64) :: window_width
+
       ! mpi variables
       real(real64) :: start, end, time_max, time_min
-      integer :: mpi_bins, mpi_start_idx, mpi_end_idx, bin_overlap
+      integer :: mpi_bins, mpi_start_idx, mpi_end_idx, bin_overlap, mpi_index
       real(real64) :: mpi_width, scale_factor, scale_count
       real(real64), allocatable :: mpi_bin_edges(:), mpi_wl_hist(:), wl_logdos_buffer(:)
 
@@ -53,21 +58,32 @@ module wang_landau
 
       ! Allocate arrays
       bins = wl_setup%bins
-      mpi_bins = bins/num_proc
-      if (my_rank == num_proc-1) then
-          mpi_bins = mpi_bins + MOD(bins, mpi_bins*(num_proc))
+      num_windows = wl_setup%num_windows
+      if (MOD(num_windows, num_proc) /= 0) then
+        if(my_rank == 0) then
+          write(6,'(72("~"))')
+          write(6,'(5("~"),x,"Error: Number of MPI processes not divisible by num_windows",x,6("~"))')
+          write(6,'(72("~"))')
+        end if
+        call comms_wait()
+        call MPI_FINALIZE(ierror)
+        call EXIT(0)
       end if
+
+      allocate(window_indices(num_windows, 2))
 
       bin_overlap = wl_setup%bin_overlap
-      mpi_start_idx = max(my_rank*(bins/num_proc) + 1 - bin_overlap, 1)
-      mpi_end_idx = min(my_rank*(bins/num_proc) + 1 + mpi_bins + bin_overlap, bins)
-      mpi_bins = mpi_end_idx - mpi_start_idx + 1
+      do i=1, num_windows
+        window_indices(i,1) = max((i-1)*(bins/num_windows) - bin_overlap, 1)
+        window_indices(i,2) = min(i*(bins/num_windows) + bin_overlap, bins)
+      end do
+      
+      call comms_wait()
 
-      ! Adjust for spare bins after division
-      if (my_rank < bins - (bins/num_proc)*num_proc) then
-        mpi_start_idx = mpi_start_idx + my_rank
-        mpi_end_idx = mpi_end_idx + my_rank
-      end if
+      mpi_index = my_rank/num_proc + 1
+      mpi_start_idx = window_indices(mpi_index,1)
+      mpi_end_idx = window_indices(mpi_index,2)
+      mpi_bins = mpi_end_idx - mpi_start_idx + 1
 
       allocate(bin_edges(bins+1))
       allocate(wl_hist(bins))
@@ -86,7 +102,7 @@ module wang_landau
       ! Conversion meV/atom to Rydberg
       energy_to_ry=setup%n_atoms/(eV_to_Ry*1000)
 
-      mpi_width = (wl_setup%energy_max - wl_setup%energy_min)/real(num_proc)*energy_to_ry
+      window_width = (wl_setup%energy_max - wl_setup%energy_min)/real(num_windows)*energy_to_ry
       target_energy = wl_setup%energy_min*energy_to_ry + mpi_width*(my_rank + 0.5)
 
       j = 1
@@ -225,9 +241,7 @@ module wang_landau
         end if
         
       end do
-     
-
-      
+           
       if(my_rank == 0) then
           write(*, *)
           write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
