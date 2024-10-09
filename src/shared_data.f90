@@ -159,14 +159,16 @@ module shared_data
     integer :: mc_sweeps
     ! Number of bins across energy range
     integer :: bins
+    ! Number of energy windows
+    integer :: num_windows
+    ! Number of bins in the overlap region
+    integer :: bin_overlap
     ! Tolerance for wang landau
     real :: tolerance
     ! Flatness for wang landau histogram
     real :: flatness
     ! Wang Landau density of states histogram tuning parameter
     real :: wl_f
-    ! Number of bins in the overlap region
-    integer :: bin_overlap
     ! Energy range minimum
     real :: energy_min
     ! Energy range maximum
