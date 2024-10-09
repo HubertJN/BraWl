@@ -528,7 +528,7 @@ module io
   subroutine read_wl_file(filename, parameters, my_rank)
     integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(10) :: check
+    logical, dimension(11) :: check
     type(wl_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -588,42 +588,48 @@ module io
             print*, '# Read bins = ', parameters%bins
           end if
           check(4) = .true.
-        case ('tolerance')
-          read(buffer, *, iostat=ios) parameters%tolerance
+        case ('num_windows')
+          read(buffer, *, iostat=ios) parameters%num_windows
           if (my_rank == 0) then
-            print*, '# Read tolerance = ', parameters%tolerance
+            print*, '# Read num_windows = ', parameters%num_windows
           end if
           check(5) = .true.
-        case ('flatness')
-          read(buffer, *, iostat=ios) parameters%flatness
-          if (my_rank == 0) then
-            print*, '# Read flatness = ', parameters%flatness
-          end if
-          check(6) = .true.
-        case ('wl_f')
-          read(buffer, *, iostat=ios) parameters%wl_f
-          if (my_rank == 0) then
-            print*, '# Read wl_f = ', parameters%wl_f
-          end if
-          check(7) = .true.
         case ('bin_overlap')
           read(buffer, *, iostat=ios) parameters%bin_overlap
           if (my_rank == 0) then
             print*, '# Read bin_overlap = ', parameters%bin_overlap
           end if
+          check(6) = .true.
+        case ('tolerance')
+          read(buffer, *, iostat=ios) parameters%tolerance
+          if (my_rank == 0) then
+            print*, '# Read tolerance = ', parameters%tolerance
+          end if
+          check(7) = .true.
+        case ('flatness')
+          read(buffer, *, iostat=ios) parameters%flatness
+          if (my_rank == 0) then
+            print*, '# Read flatness = ', parameters%flatness
+          end if
           check(8) = .true.
+        case ('wl_f')
+          read(buffer, *, iostat=ios) parameters%wl_f
+          if (my_rank == 0) then
+            print*, '# Read wl_f = ', parameters%wl_f
+          end if
+          check(9) = .true.
         case ('energy_min')
           read(buffer, *, iostat=ios) parameters%energy_min
           if (my_rank == 0) then
             print*, '# Read energy_min = ', parameters%energy_min
           end if
-          check(9) = .true.
+          check(10) = .true.
         case ('energy_max')
           read(buffer, *, iostat=ios) parameters%energy_max
           if (my_rank == 0) then
             print*, '# Read energy_max = ', parameters%energy_max
           end if
-          check(10) = .true.
+          check(11) = .true.
 
         case default
           if (my_rank == 0) then
