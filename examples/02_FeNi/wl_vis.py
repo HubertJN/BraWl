@@ -42,7 +42,7 @@ for i, edge in enumerate(bin_edges[:-1]):
 
 bin_width = bin_edges[1] - bin_edges[0]
 
-bins = 64
+bins = 32
 bin_width_con = (bin_edges[-1] - bin_edges[0])/(bins)
 bin_edges_con = np.arange(bin_edges[0], bin_edges[-1]+bin_width_con, bin_width_con)
 
