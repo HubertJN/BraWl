@@ -186,6 +186,9 @@ module wang_landau
             wl_f = wl_f * 0.5_real64
             mpi_wl_hist = 0.0_real64
             hist_reset = .True.
+            ! End timer
+            end = mpi_wtime()
+
             !Reduce f
             call MPI_ALLREDUCE(minval(wl_logdos, MASK=(wl_logdos > min_val)), wl_logdos_min, 1, MPI_DOUBLE_PRECISION, &
             MPI_MIN, MPI_COMM_WORLD, ierror)
@@ -234,9 +237,6 @@ module wang_landau
         end if
 
         if (hist_reset .eqv. .True.) then
-          ! End timer
-          end = mpi_wtime()
-
           call MPI_REDUCE(end-start, time_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, 0, MPI_COMM_WORLD, ierror)
           call MPI_REDUCE(end-start, time_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, MPI_COMM_WORLD, ierror)
           call comms_wait()
@@ -245,41 +245,40 @@ module wang_landau
               write(6,'(a,i0,a,f6.2,a,f12.10,a,f6.2,a,f6.2,a)', advance='no'), "Rank: ", my_rank, " Flatness: ", flatness, &
               "% W-L F: ", wl_f_prev, " Time min:", time_min, "s Time max:", time_max, "s"
               wl_f_prev = wl_f
-              print*, wl_logdos_min
               write(*,*)
           end if
           
-!          do i=1, num_proc-1 
-!            if (my_rank == i) then
-!              call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD, ierror)
-!              call MPI_Send(mpi_start_idx, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, ierror)
-!              call MPI_Send(mpi_end_idx, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, ierror)
-!            end if
-!            if (my_rank == 0) then
-!              call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
-!              call MPI_Recv(mpi_start_idx, 1, MPI_INT, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
-!              call MPI_Recv(mpi_end_idx, 1, MPI_INT, i, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
-!              scale_factor = 0.0_real64
-!              scale_count = 0.0_real64
-!              do j=0, bin_overlap-1
-!                if (wl_logdos_buffer(mpi_start_idx+j) > min_val .and. wl_logdos(mpi_start_idx+j) > min_val) then
-!                  scale_factor = scale_factor + EXP(wl_logdos(mpi_start_idx+j))-EXP(wl_logdos_buffer(mpi_start_idx+j))
-!                  scale_count = scale_count + 1.0_real64
-!                end if
-!              end do
-!              scale_factor = scale_factor/scale_count
-!              do j=mpi_start_idx+bin_overlap, mpi_end_idx
-!                wl_logdos_buffer(j) = LOG(EXP(wl_logdos_buffer(j)) + scale_factor)
-!              end do
-!            end if
-!          end do
-!
-!          if (my_rank == 0) then
-!            ! Write output files
-!            call ncdf_writer_1d("wl_dos_bins.dat", ierr, bin_edges)
-!            call ncdf_writer_1d("wl_dos.dat", ierr, wl_logdos_buffer)
-!            call ncdf_writer_1d("wl_hist.dat", ierr, wl_hist)
-!          end if
+          do i=2, num_windows
+            if (my_rank == (i-1)*num_walkers) then
+              call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD, ierror)
+              call MPI_Send(mpi_start_idx, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, ierror)
+              call MPI_Send(mpi_end_idx, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, ierror)
+            end if
+            if (my_rank == 0) then
+              call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
+              call MPI_Recv(mpi_start_idx, 1, MPI_INT, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
+              call MPI_Recv(mpi_end_idx, 1, MPI_INT, i, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
+              scale_factor = 0.0_real64
+              scale_count = 0.0_real64
+              do j=0, bin_overlap-1
+                if (wl_logdos_buffer(mpi_start_idx+j) > min_val .and. wl_logdos(mpi_start_idx+j) > min_val) then
+                  scale_factor = scale_factor + EXP(wl_logdos(mpi_start_idx+j))-EXP(wl_logdos_buffer(mpi_start_idx+j))
+                  scale_count = scale_count + 1.0_real64
+                end if
+              end do
+              scale_factor = scale_factor/scale_count
+              do j=mpi_start_idx+bin_overlap, mpi_end_idx
+                wl_logdos_buffer(j) = LOG(EXP(wl_logdos_buffer(j)) + scale_factor)
+              end do
+            end if
+          end do
+
+          if (my_rank == 0) then
+            ! Write output files
+            call ncdf_writer_1d("wl_dos_bins.dat", ierr, bin_edges)
+            call ncdf_writer_1d("wl_dos.dat", ierr, wl_logdos_buffer)
+            call ncdf_writer_1d("wl_hist.dat", ierr, wl_hist)
+          end if
         end if
       end do
            
