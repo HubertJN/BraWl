@@ -13,6 +13,7 @@ program main
   use metropolis
   use nested_sampling
   use tmmc
+  use wang_landau
   use io
   use kinds
   use c_functions
@@ -28,6 +29,12 @@ program main
 
   ! Nested Sampling parameters type
   type(ns_params) :: ns_setup
+
+  ! Tmmc parameters type
+  type(tmmc_params) :: tmmc_setup
+
+  ! Wang Landau parameters type
+  type(wl_params) :: wl_setup
 
   ! Start MPI
   call comms_initialise()
@@ -79,8 +86,15 @@ program main
 
   else if (setup%mode == 304) then
 
-    ! Nested Sampling algorithm
-    call tmmc_main(setup, my_rank)
+    ! Tmmc algorithm
+    call read_tmmc_file("tmmc_input.txt", tmmc_setup, my_rank)
+    call tmmc_main(setup, tmmc_setup, my_rank)
+
+  else if (setup%mode == 305) then
+
+    ! Wang Landau algorithm
+    call read_wl_file("wl_input.txt", wl_setup, my_rank)
+    call wl_main(setup, wl_setup, my_rank)
 
   else
 
