@@ -77,8 +77,6 @@ module wang_landau
         window_indices(i,1) = max((i-1)*(bins/num_windows) - bin_overlap, 1)
         window_indices(i,2) = min(i*(bins/num_windows) + bin_overlap, bins)
       end do
-      
-      call comms_wait()
 
       mpi_index = my_rank/num_walkers + 1
       mpi_start_idx = window_indices(mpi_index,1)
