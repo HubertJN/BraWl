@@ -416,7 +416,7 @@ module io
   subroutine read_tmmc_file(filename, parameters, my_rank)
     integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(8) :: check
+    logical, dimension(7) :: check
     type(tmmc_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -452,28 +452,28 @@ module io
         buffer = buffer(pos+1:)
 
         select case (label)
-        case ('burn_in')
-          read(buffer, *, iostat=ios) parameters%burn_in
-          if (my_rank == 0) then
-            print*, '# Read burn_in = ', parameters%burn_in
-          end if
-          check(1) = .true.
-        case ('burn_in_sweeps')
-          read(buffer, *, iostat=ios) parameters%burn_in_sweeps
-          if (my_rank == 0) then
-            print*, '# Read burn_in_sweeps = ', parameters%burn_in_sweeps
-          end if
-          check(2) = .true.
         case ('mc_sweeps')
           read(buffer, *, iostat=ios) parameters%mc_sweeps
           if (my_rank == 0) then
             print*, '# Read mc_sweeps = ', parameters%mc_sweeps
           end if
-          check(3) = .true.
+          check(1) = .true.
         case ('bins')
           read(buffer, *, iostat=ios) parameters%bins
           if (my_rank == 0) then
             print*, '# Read bins = ', parameters%bins
+          end if
+          check(2) = .true.
+        case ('num_windows')
+          read(buffer, *, iostat=ios) parameters%num_windows
+          if (my_rank == 0) then
+            print*, '# Read bin_overlap = ', parameters%num_windows
+          end if
+          check(3) = .true.
+        case ('bin_overlap')
+          read(buffer, *, iostat=ios) parameters%bin_overlap
+          if (my_rank == 0) then
+            print*, '# Read bin_overlap = ', parameters%bin_overlap
           end if
           check(4) = .true.
         case ('weight_update')
@@ -494,12 +494,6 @@ module io
             print*, '# Read energy_max = ', parameters%energy_max
           end if
           check(7) = .true.
-        case ('bin_overlap')
-          read(buffer, *, iostat=ios) parameters%bin_overlap
-          if (my_rank == 0) then
-            print*, '# Read bin_overlap = ', parameters%bin_overlap
-          end if
-          check(8) = .true.
         case default
           if (my_rank == 0) then
             print*, '# Skipping invalid label'
@@ -528,7 +522,7 @@ module io
   subroutine read_wl_file(filename, parameters, my_rank)
     integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(11) :: check
+    logical, dimension(9) :: check
     type(wl_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -564,72 +558,60 @@ module io
         buffer = buffer(pos+1:)
 
         select case (label)
-        case ('burn_in')
-          read(buffer, *, iostat=ios) parameters%burn_in
-          if (my_rank == 0) then
-            print*, '# Read burn_in = ', parameters%burn_in
-          end if
-          check(1) = .true.
-        case ('burn_in_sweeps')
-          read(buffer, *, iostat=ios) parameters%burn_in_sweeps
-          if (my_rank == 0) then
-            print*, '# Read burn_in_sweeps = ', parameters%burn_in_sweeps
-          end if
-          check(2) = .true.
         case ('mc_sweeps')
           read(buffer, *, iostat=ios) parameters%mc_sweeps
           if (my_rank == 0) then
             print*, '# Read mc_sweeps = ', parameters%mc_sweeps
           end if
-          check(3) = .true.
+          check(1) = .true.
         case ('bins')
           read(buffer, *, iostat=ios) parameters%bins
           if (my_rank == 0) then
             print*, '# Read bins = ', parameters%bins
           end if
-          check(4) = .true.
+          check(2) = .true.
         case ('num_windows')
           read(buffer, *, iostat=ios) parameters%num_windows
           if (my_rank == 0) then
             print*, '# Read num_windows = ', parameters%num_windows
           end if
-          check(5) = .true.
+          check(3) = .true.
         case ('bin_overlap')
           read(buffer, *, iostat=ios) parameters%bin_overlap
           if (my_rank == 0) then
             print*, '# Read bin_overlap = ', parameters%bin_overlap
           end if
-          check(6) = .true.
+          check(4) = .true.
         case ('tolerance')
           read(buffer, *, iostat=ios) parameters%tolerance
           if (my_rank == 0) then
             print*, '# Read tolerance = ', parameters%tolerance
           end if
-          check(7) = .true.
+          check(5) = .true.
         case ('flatness')
           read(buffer, *, iostat=ios) parameters%flatness
           if (my_rank == 0) then
             print*, '# Read flatness = ', parameters%flatness
           end if
-          check(8) = .true.
+          check(6) = .true.
         case ('wl_f')
           read(buffer, *, iostat=ios) parameters%wl_f
           if (my_rank == 0) then
             print*, '# Read wl_f = ', parameters%wl_f
           end if
-          check(9) = .true.
+          check(7) = .true.
         case ('energy_min')
           read(buffer, *, iostat=ios) parameters%energy_min
           if (my_rank == 0) then
             print*, '# Read energy_min = ', parameters%energy_min
           end if
-          check(10) = .true.
+          check(8) = .true.
         case ('energy_max')
           read(buffer, *, iostat=ios) parameters%energy_max
           if (my_rank == 0) then
             print*, '# Read energy_max = ', parameters%energy_max
           end if
-          check(11) = .true.
+          check(9) = .true.
 
         case default
           if (my_rank == 0) then
