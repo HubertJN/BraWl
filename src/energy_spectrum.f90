@@ -29,14 +29,18 @@ module energy_spectrum
         type(es_params) :: es_setup
       
         ! Integers used in calculations
-        integer :: ierr, unique_energy
+        integer :: ierr, unique_energy, i, energy_min_loc, energy_max_loc
         
         ! Temperature and temperature steps
-        real(real64) :: acceptance
+        real(real64) :: acceptance, step, energy_to_ry
       
-        real(real64), allocatable :: energy_spectrum(:), energy_spectrum_write(:)
-  
+        real(real64), allocatable :: energy_spectrum(:), energy_spectrum_condensed(:), bin_edges(:)
+        integer, allocatable :: energy_spectrum_sort(:)
+        
+        energy_to_ry=setup%n_atoms/(eV_to_Ry*1000)
+
         allocate(energy_spectrum(es_setup%unique_energy_count))
+        allocate(bin_edges(es_setup%bins+1))
         energy_spectrum = 0.0_real64
         unique_energy = 1
   
@@ -62,10 +66,30 @@ module energy_spectrum
 
         print*, "Unique energies found: ", unique_energy-1
         
-        allocate(energy_spectrum_write(unique_energy-1))
-        energy_spectrum_write = energy_spectrum(1:unique_energy-1)
-        call ncdf_writer_1d("energy_spectrum.dat", ierr, energy_spectrum_write)     
-  
+        allocate(energy_spectrum_condensed(unique_energy-1))
+        allocate(energy_spectrum_sort(unique_energy-1))
+        energy_spectrum_condensed = energy_spectrum(1:unique_energy-1)
+
+        call merge_argsort(energy_spectrum_condensed, energy_spectrum_sort)
+        energy_spectrum_sort = energy_spectrum_sort(SIZE(energy_spectrum_sort):1:-1 )
+        energy_spectrum_condensed = energy_spectrum_condensed(energy_spectrum_sort)
+        call ncdf_writer_1d("energy_spectrum.dat", ierr, energy_spectrum_condensed)
+
+        energy_min_loc = minloc(abs(energy_spectrum_condensed-es_setup%energy_min*energy_to_ry), 1)
+        energy_max_loc = minloc(abs(energy_spectrum_condensed-es_setup%energy_max*energy_to_ry), 1)
+
+        energy_spectrum_condensed = energy_spectrum_condensed(energy_min_loc:energy_max_loc)
+
+        !print*, energy_spectrum_condensed
+
+        step = REAL(SIZE(energy_spectrum_condensed)/es_setup%bins)
+        bin_edges(1) = MINVAL(energy_spectrum_condensed)
+        do i=1, es_setup%bins
+            bin_edges(i+1) = energy_spectrum_condensed(NINT(i*step))
+        end do
+
+        call ncdf_writer_1d("bin_edges.dat", ierr, bin_edges)
+
         write(*, *)
         write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
     
@@ -142,5 +166,56 @@ module energy_spectrum
         end do
   
     end function run_es_sweeps
+
+    subroutine merge_argsort(r,d)
+              real(kind=8), intent(in), dimension(:) :: r
+              integer, intent(out), dimension(size(r)) :: d
+
+              integer, dimension(size(r)) :: il
+
+              integer :: stepsize
+              integer :: i,j,n,left,k,ksize
+
+              n = size(r)
+
+              do i=1,n
+                  d(i)=i
+              end do
+
+              if ( n==1 ) return
+
+              stepsize = 1
+              do while (stepsize<n)
+                  do left=1,n-stepsize,stepsize*2
+                      i = left
+                      j = left+stepsize
+                      ksize = min(stepsize*2,n-left+1)
+                      k=1
+
+                      do while ( i<left+stepsize .and. j<left+ksize )
+                          if ( r(d(i))>r(d(j)) ) then
+                              il(k)=d(i)
+                              i=i+1
+                              k=k+1
+                          else
+                              il(k)=d(j)
+                              j=j+1
+                              k=k+1
+                          endif
+                      end do
+                        if ( i<left+stepsize ) then
+                          ! fill up remaining from left
+                          il(k:ksize) = d(i:left+stepsize-1)
+                      else
+                          ! fill up remaining from right
+                          il(k:ksize) = d(j:left+ksize-1)
+                      endif
+                      d(left:left+ksize-1) = il(1:ksize)
+                  end do
+                  stepsize=stepsize*2
+              end do
+
+              return
+          end subroutine
   end module energy_spectrum
   
