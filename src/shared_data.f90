@@ -181,6 +181,12 @@ module shared_data
     integer :: mc_sweeps
     ! Number of unique energies to be recorded
     integer :: unique_energy_count
+    ! Number of bins across energy range
+    integer :: bins
+    ! Energy range minimum
+    real :: energy_min
+    ! Energy range maximum
+    real :: energy_max
   end type es_params
 
   !--------------------------------------------------------------------!
