@@ -11,6 +11,7 @@ module io
   use shared_data
   use command_line
   use display
+  use netcdf
   
   implicit none
 
@@ -641,7 +642,7 @@ module io
   subroutine read_es_file(filename, parameters, my_rank)
     integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(2) :: check
+    logical, dimension(5) :: check
     type(es_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -689,6 +690,24 @@ module io
             print*, '# Read unique_energy_count = ', parameters%unique_energy_count
           end if
           check(2) = .true.
+       case ('bins')
+          read(buffer, *, iostat=ios) parameters%bins
+          if (my_rank == 0) then
+            print*, '# Read bins = ', parameters%bins
+          end if
+          check(3) = .true.
+       case ('energy_min')
+          read(buffer, *, iostat=ios) parameters%energy_min
+          if (my_rank == 0) then
+            print*, '# Read energy_min = ', parameters%energy_min
+          end if
+          check(4) = .true.
+        case ('energy_max')
+          read(buffer, *, iostat=ios) parameters%energy_max
+          if (my_rank == 0) then
+            print*, '# Read energy_max = ', parameters%energy_max
+        end if
+          check(5) = .true.
         case default
           if (my_rank == 0) then
             print*, '# Skipping invalid label'
@@ -708,5 +727,23 @@ module io
     end if
 
   end subroutine read_es_file
+
+  !--------------------------------------------------------------------!
+  ! Subroutine to read and parse bin edge netcdf file                  !
+  !                                                                    !
+  ! H. Naguszewski, Warwick                                       2024 !
+  !--------------------------------------------------------------------!
+
+  subroutine read_bin_edges(filename, array)
+    integer :: ncid, x_varid
+    character(len=*), intent(in) :: filename
+    real(real64), dimension(:), intent(inout) :: array
+
+
+    nf90_open(filename, nf90_nowrite, ncid)
+    nf90_inq_varid(ncid, "grid data", x_varid)
+    nf90_get_var(ncid, x_varid, array)
+
+  end subroutine read_bin_edges
 
 end module io
