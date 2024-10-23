@@ -159,10 +159,7 @@ module tmmc
     !---------!
     !print*, my_rank, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges)
     beta = 1.0_real64/temp
-    call comms_wait()
-    print*, my_rank, target_energy, setup%full_energy(config)
     call tmmc_burn_in(setup, tmmc_setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
-    print*, my_rank, "Done"
     call comms_wait()
     
 
