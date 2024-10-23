@@ -468,7 +468,7 @@ module io
         case ('num_windows')
           read(buffer, *, iostat=ios) parameters%num_windows
           if (my_rank == 0) then
-            print*, '# Read bin_overlap = ', parameters%num_windows
+            print*, '# Read num_windows = ', parameters%num_windows
           end if
           check(3) = .true.
         case ('bin_overlap')
@@ -727,23 +727,4 @@ module io
     end if
 
   end subroutine read_es_file
-
-  !--------------------------------------------------------------------!
-  ! Subroutine to read and parse bin edge netcdf file                  !
-  !                                                                    !
-  ! H. Naguszewski, Warwick                                       2024 !
-  !--------------------------------------------------------------------!
-
-  subroutine read_bin_edges(filename, array)
-    integer :: ncid, x_varid
-    character(len=*), intent(in) :: filename
-    real(real64), dimension(:), intent(inout) :: array
-
-
-    nf90_open(filename, nf90_nowrite, ncid)
-    nf90_inq_varid(ncid, "grid data", x_varid)
-    nf90_get_var(ncid, x_varid, array)
-
-  end subroutine read_bin_edges
-
 end module io
