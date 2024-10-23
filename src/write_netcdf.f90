@@ -985,5 +985,43 @@ module write_netcdf
       stop "stopped"
     end if
   end subroutine check
+
+  !--------------------------------------------------------------------!
+  ! Subroutine to read and parse bin edge netcdf file                  !
+  !                                                                    !
+  ! H. Naguszewski, Warwick                                       2024 !
+  !--------------------------------------------------------------------!
+  subroutine read_1D_array(filename, varname, array)
+    character(len=*), intent(in) :: filename
+    character(len=*), intent(in) :: varname
+    real(real64), intent(out) :: array(:)
+    integer :: ncid, varid, ierr
+
+    ! Open the NetCDF file
+    ierr = nf90_open(filename, nf90_nowrite, ncid)
+    if (ierr /= nf90_noerr) then
+      print *, 'Error opening file:', nf90_strerror(ierr)
+      return
+    end if
+
+    ! Get the variable ID
+    ierr = nf90_inq_varid(ncid, varname, varid)
+    if (ierr /= nf90_noerr) then
+      print *, 'Error getting variable ID:', nf90_strerror(ierr)
+    end if
+
+    ! Read the data into the array
+    ierr = nf90_get_var(ncid, varid, array)
+    if (ierr /= nf90_noerr) then
+      print *, 'Error reading variable:', nf90_strerror(ierr)
+    end if
+
+    ! Close the NetCDF file
+    ierr = nf90_close(ncid)
+    if (ierr /= nf90_noerr) then
+      print *, 'Error closing file:', nf90_strerror(ierr)
+    end if
+
+  end subroutine read_1D_array
    
 end module write_netcdf
