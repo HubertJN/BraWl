@@ -16,7 +16,7 @@ module tmmc
 
   implicit none
 
-  contains
+contains
 
   !------------------------------------------------------------------!
   ! Main TMMC routine.                                               !
@@ -52,7 +52,7 @@ module tmmc
     real(real64), allocatable :: mpi_bin_edges(:), energy_bias_mpi(:)
 
     ! window variables
-    integer, allocatable :: window_indices(:,:)
+    integer, allocatable :: window_indices(:, :)
     integer :: num_windows, num_walkers
 
     ! Get number of MPI processes
@@ -64,26 +64,26 @@ module tmmc
     num_windows = tmmc_setup%num_windows
     num_walkers = num_proc/num_windows
     if (MOD(num_proc, num_windows) /= 0) then
-      if(my_rank == 0) then
-        write(6,'(72("~"))')
-        write(6,'(5("~"),x,"Error: Number of MPI processes not divisible by num_windows",x,6("~"))')
-        write(6,'(72("~"))')
+      if (my_rank == 0) then
+        write (6, '(72("~"))')
+        write (6, '(5("~"),x,"Error: Number of MPI processes not divisible by num_windows",x,6("~"))')
+        write (6, '(72("~"))')
       end if
       call MPI_FINALIZE(ierror)
       call EXIT(0)
-    end if 
+    end if
 
     ! Get start and end indices for energy windows
-    allocate(window_indices(num_windows, 2))
+    allocate (window_indices(num_windows, 2))
     bin_overlap = tmmc_setup%bin_overlap
-    do i=1, num_windows
-      window_indices(i,1) = max((i-1)*(bins/num_windows) + 1 - bin_overlap, 1)
-      window_indices(i,2) = min(i*(bins/num_windows) + bin_overlap, bins)
+    do i = 1, num_windows
+      window_indices(i, 1) = max((i - 1)*(bins/num_windows) + 1 - bin_overlap, 1)
+      window_indices(i, 2) = min(i*(bins/num_windows) + bin_overlap, bins)
     end do
 
     mpi_index = my_rank/num_walkers + 1
-    mpi_start_idx = window_indices(mpi_index,1)
-    mpi_end_idx = window_indices(mpi_index,2)
+    mpi_start_idx = window_indices(mpi_index, 1)
+    mpi_end_idx = window_indices(mpi_index, 2)
     mpi_bins = mpi_end_idx - mpi_start_idx + 1
 
     ! Allocate arrays
@@ -114,11 +114,11 @@ module tmmc
     ! Create energy bins and set mpi bins
     j = 1
     bin_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(tmmc_setup%bins)*energy_to_ry
-    do i=1, bins+1
-      bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i-1)*bin_width
+    do i = 1, bins + 1
+      bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i - 1)*bin_width
     end do
 
-    do i=mpi_start_idx, mpi_end_idx+1
+    do i = mpi_start_idx, mpi_end_idx + 1
       mpi_bin_edges(j) = bin_edges(i)
       j = j + 1
     end do
@@ -146,12 +146,11 @@ module tmmc
     !---------!
     call tmmc_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
     call comms_wait()
-    
 
-    if(my_rank == 0) then
-      write(*,*)
-      write(6,'(27("-"),x,"Burn-in complete",x,27("-"),/)')
-      write(*,*)
+    if (my_rank == 0) then
+      write (*, *)
+      write (6, '(27("-"),x,"Burn-in complete",x,27("-"),/)')
+      write (*, *)
     end if
 
     !--------------------!
@@ -172,7 +171,7 @@ module tmmc
 
       if (my_rank == 0) then
         call bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, trans_matrix_buffer, &
-        bins, bin_edges, bin_width, beta, 1)
+                          bins, bin_edges, bin_width, beta, 1)
         ! Write output files
         call ncdf_writer_1d("dos_bins.dat", ierr, bin_edges)
         call ncdf_writer_1d("dos_probability.dat", ierr, probability_dist)
@@ -180,7 +179,7 @@ module tmmc
         call ncdf_writer_2d("energy_bias_all.dat", ierr, energy_bias_all)
         call ncdf_writer_2d("transition_matrix.dat", ierr, trans_matrix_buffer)
       end if
-      
+
       call comms_wait()
       bias_time = MPI_Wtime()
       call MPI_Bcast(energy_bias, bins, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierror)
@@ -414,7 +413,7 @@ module tmmc
   end function run_tmmc_sweeps
 
   subroutine tmmc_burn_in(setup, config, target_energy, min_e, max_e)
-    integer(int16), dimension(:,:,:,:) :: config
+    integer(int16), dimension(:, :, :, :) :: config
     class(run_params), intent(in) :: setup
     real(real64), intent(in) :: target_energy, min_e, max_e
 
@@ -429,34 +428,34 @@ module tmmc
       if (e_unswapped > min_e .and. e_unswapped < max_e) then
         exit
       end if
-        ! Make one MC trial
-        ! Generate random numbers
-        rdm1 = setup%rdm_site()
-        rdm2 = setup%rdm_site()
+      ! Make one MC trial
+      ! Generate random numbers
+      rdm1 = setup%rdm_site()
+      rdm2 = setup%rdm_site()
 
-        ! Get what is on those sites
-        site1 = config(rdm1(1), rdm1(2), rdm1(3), rdm1(4))
-        site2 = config(rdm2(1), rdm2(2), rdm2(3), rdm2(4))
-  
-        ! If sites different proceed
-        if (site1 /= site2) then
+      ! Get what is on those sites
+      site1 = config(rdm1(1), rdm1(2), rdm1(3), rdm1(4))
+      site2 = config(rdm2(1), rdm2(2), rdm2(3), rdm2(4))
+
+      ! If sites different proceed
+      if (site1 /= site2) then
+        call pair_swap(config, rdm1, rdm2)
+        e_swapped = setup%full_energy(config)
+
+        delta_e = e_swapped - e_unswapped
+
+        ! Accept or reject move
+        if (e_swapped > target_energy .and. delta_e < 0) then
+          e_unswapped = e_swapped
+        else if (e_swapped < target_energy .and. delta_e > 0) then
+          e_unswapped = e_swapped
+        else if (genrand() .lt. 0.01_real64) then ! to prevent getting stuck in local minimum
+          e_unswapped = e_swapped
+        else
           call pair_swap(config, rdm1, rdm2)
-          e_swapped = setup%full_energy(config)
-          
-          delta_e = e_swapped - e_unswapped
-
-          ! Accept or reject move
-          if (e_swapped > target_energy .and. delta_e < 0) then
-            e_unswapped = e_swapped
-          else if (e_swapped < target_energy .and. delta_e > 0) then
-            e_unswapped = e_swapped
-          else if (genrand() .lt. 0.01_real64) then ! to prevent getting stuck in local minimum
-            e_unswapped = e_swapped
-          else
-            call pair_swap(config, rdm1, rdm2)
-          end if
         end if
-  end do
-end subroutine tmmc_burn_in
+      end if
+    end do
+  end subroutine tmmc_burn_in
 
 end module tmmc
