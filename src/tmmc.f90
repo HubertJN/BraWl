@@ -35,7 +35,7 @@ module tmmc
     type(tmmc_params) :: tmmc_setup
 
     ! Integers used in calculations
-    integer :: i, j, k, ierr, accept, bins
+    integer :: i, j, ierr, bins
 
     ! Temperature and temperature steps
     real(real64) :: temp, acceptance, beta
@@ -48,7 +48,7 @@ module tmmc
 
     ! MPI variables
     integer :: mpi_bins, mpi_start_idx, mpi_end_idx, bin_overlap, mpi_index
-    real(real64) :: mpi_width, start, end, reduce_time, bias_time, tmmc_time
+    real(real64) :: start, end, reduce_time, bias_time, tmmc_time
     real(real64), allocatable :: mpi_bin_edges(:), energy_bias_mpi(:)
 
     ! window variables
@@ -58,7 +58,7 @@ module tmmc
     ! Get number of MPI processes
     call MPI_COMM_SIZE(MPI_COMM_WORLD, num_proc, ierror)
     tmmc_setup%mc_sweeps = tmmc_setup%mc_sweeps/tmmc_setup%weight_update
-    !print*, tmmc_setup%mc_sweeps
+    print*, tmmc_setup%mc_sweeps
 
     ! Allocate arrays
     bins = tmmc_setup%bins
@@ -159,7 +159,7 @@ module tmmc
     !---------!
     !print*, my_rank, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges)
     beta = 1.0_real64/temp
-    call tmmc_burn_in(setup, tmmc_setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
+    call tmmc_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
     call comms_wait()
     
 
@@ -290,7 +290,7 @@ module tmmc
     logical, dimension(bins) :: max_mask
 
     integer :: i, ii
-    real(real32) :: Pnorm, bin_energy, min_bias, mincount
+    real(real64) :: Pnorm, bin_energy, min_bias, mincount
     external :: dgeev
 
     max_mask = .True.
@@ -374,7 +374,7 @@ module tmmc
 
     integer, dimension(4) :: rdm1, rdm2
     real(real64) :: e_swapped, e_unswapped, delta_e, beta, unswapped_bias, swapped_bias
-    integer :: acceptance, i, ibin, jbin, ibin_mpi, jbin_mpi
+    integer :: acceptance, i, ibin, jbin
     integer(int16) :: site1, site2
 
     ! Store inverse temp
@@ -382,6 +382,7 @@ module tmmc
 
     ! Establish total energy before any moves
     e_unswapped = setup%full_energy(config)
+    e_swapped = e_unswapped
 
     acceptance = 0.0_real64
 
@@ -449,15 +450,13 @@ module tmmc
 
   end function run_tmmc_sweeps
 
-  subroutine tmmc_burn_in(setup, tmmc_setup, config, target_energy, min_e, max_e)
+  subroutine tmmc_burn_in(setup, config, target_energy, min_e, max_e)
     integer(int16), dimension(:,:,:,:) :: config
     class(run_params), intent(in) :: setup
-    class(tmmc_params), intent(in) :: tmmc_setup
     real(real64), intent(in) :: target_energy, min_e, max_e
 
     integer, dimension(4) :: rdm1, rdm2
-    real(real64) :: e_swapped, e_unswapped, delta_e, beta
-    integer :: i
+    real(real64) :: e_swapped, e_unswapped, delta_e
     integer(int16) :: site1, site2
 
     ! Establish total energy before any moves
