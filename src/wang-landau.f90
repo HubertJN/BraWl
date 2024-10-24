@@ -20,24 +20,22 @@ module wang_landau
   subroutine wl_main(setup, wl_setup, my_rank)
       ! Rank of this processor
       integer, intent(in) :: my_rank
-      integer :: ierror, errcode, num_proc
-      logical :: bin_file_exists
+      integer :: ierror, num_proc
 
-      ! Arrays for storing data
+      ! Input file data types
       type(run_params) :: setup
       type(wl_params) :: wl_setup
     
-      ! Integers used in calculations
-      integer :: i,j,k, ierr, accept, bins
+      ! Loop integers and error handling variable
+      integer :: i, j ,ierr
       
       ! Temperature and temperature steps
-      real(real64) :: temp, acceptance, beta, flatness
+      real(real64) :: temp, beta 
     
       ! wl variables and arrays
+      integer :: bins, resets
       real(real64) :: bin_width, energy_to_ry, wl_f, wl_f_prev, tolerance, flatness_tolerance
-      real(real64) :: target_energy, min_val
-      integer :: resets
-
+      real(real64) :: target_energy, min_val, flatness, acceptance
       real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:)
       logical :: first_reset, hist_reset
 
@@ -48,7 +46,7 @@ module wang_landau
       ! mpi variables
       real(real64) :: start, end, time_max, time_min
       integer :: mpi_bins, mpi_start_idx, mpi_end_idx, bin_overlap, mpi_index, mpi_start_idx_buffer, mpi_end_idx_buffer
-      real(real64) :: mpi_width, scale_factor, scale_count, wl_logdos_min
+      real(real64) :: scale_factor, scale_count, wl_logdos_min
       real(real64), allocatable :: mpi_bin_edges(:), mpi_wl_hist(:), wl_logdos_buffer(:), wl_logdos_write(:)
 
       ! Minimum value in array to be considered
@@ -57,7 +55,7 @@ module wang_landau
       ! Get number of MPI processes
       call MPI_COMM_SIZE(MPI_COMM_WORLD, num_proc, ierror)
 
-      ! Allocate arrays
+     ! Check if number of MPI processes is divisible by number of windows
       bins = wl_setup%bins
       num_windows = wl_setup%num_windows
       num_walkers = num_proc/num_windows
@@ -71,8 +69,8 @@ module wang_landau
         call EXIT(0)
       end if
 
+          ! Get start and end indices for energy windows
       allocate(window_indices(num_windows, 2))
-
       bin_overlap = wl_setup%bin_overlap
       do i=1, num_windows
         window_indices(i,1) = max((i-1)*(bins/num_windows) + 1 - bin_overlap, 1)
@@ -84,64 +82,50 @@ module wang_landau
       mpi_end_idx = window_indices(mpi_index,2)
       mpi_bins = mpi_end_idx - mpi_start_idx + 1
 
-      !print*, my_rank, mpi_index, mpi_start_idx, mpi_end_idx, mpi_bins
-      !call MPI_FINALIZE(ierr)
-      !call EXIT(0)
-
+          ! Allocate arrays
       allocate(bin_edges(bins+1))
       allocate(wl_hist(bins))
       allocate(wl_logdos(bins))
       allocate(wl_logdos_buffer(bins))
-      if (my_rank == 0) then
-        allocate(wl_logdos_write(bins))
-      end if
 
       ! MPI arrays
       allocate(mpi_bin_edges(mpi_bins+1))
       allocate(mpi_wl_hist(mpi_bins))
+      if (my_rank == 0) then
+        allocate(wl_logdos_write(bins))
+      end if
 
-      ! Set temperature
+      !  Set temperature in appropriate units for simulation
       temp = setup%T*k_b_in_Ry
+      beta = 1.0_real64/temp
 
       ! Conversion meV/atom to Rydberg
       energy_to_ry=setup%n_atoms/(eV_to_Ry*1000)
 
-      inquire(file="bin_edges1.dat", exist=bin_file_exists)
-      if (bin_file_exists) then
-        call read_1D_array("bin_edges.dat", "grid data", bin_edges)
-      end if
-  
+      ! Create energy bins and set mpi bins
       j = 1
       bin_width = (wl_setup%energy_max - wl_setup%energy_min)/real(wl_setup%bins)*energy_to_ry
-  
       do i=1, bins+1
         bin_edges(i) = wl_setup%energy_min*energy_to_ry + (i-1)*bin_width
       end do
-  
       do i=mpi_start_idx, mpi_end_idx+1
         mpi_bin_edges(j) = bin_edges(i)
         j = j + 1
       end do
 
+      ! Target energy for burn in
       target_energy = (mpi_bin_edges(1) + mpi_bin_edges(SIZE(mpi_bin_edges)))/2
 
+      ! Initialize
       wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = wl_setup%wl_f; wl_f_prev = wl_f
       flatness = 0.0_real64; first_reset = .False.; hist_reset = .True.
-
       mpi_wl_hist = 0.0_real64; wl_logdos_buffer = 0.0_real64
-      !---------------------------------!
+
 
       ! Set up the lattice
       call initial_setup(setup, config)
-  
       call lattice_shells(setup, shells, config)
     
-      ! Are we swapping neighbours or on the whole lattice?
-      if (setup%nbr_swap) then
-        setup%mc_step => monte_carlo_step_nbr
-      else
-        setup%mc_step => monte_carlo_step_lattice
-      end if
 
       if(my_rank == 0) then
         write(6,'(/,72("-"),/)')
@@ -153,9 +137,7 @@ module wang_landau
       !---------!
       ! Burn in !
       !---------!
-
-      beta = 1.0_real64/temp
-      call wl_burn_in(setup, wl_setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
+      call wl_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
       call comms_wait()
       if(my_rank == 0) then
         write(*,*)
@@ -164,10 +146,8 @@ module wang_landau
       end if
       
       !--------------------!
-      ! Target Temperature !
+      ! Main Wang-Landau   !
       !--------------------!
-      i = 0
-      j = 0
       resets = 1
       tolerance = wl_setup%tolerance
       flatness_tolerance = wl_setup%flatness
@@ -177,18 +157,10 @@ module wang_landau
           start = mpi_wtime()
           hist_reset = .False.
         end if
-        acceptance = run_wl_sweeps(setup, wl_setup, config, temp, bins, &
-                                  bin_edges, mpi_start_idx, mpi_end_idx, &
-                                  mpi_wl_hist, wl_logdos, wl_f)
-
-
+        acceptance = run_wl_sweeps(setup, wl_setup, config, temp, bins, bin_edges, mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f)
 
         flatness = 100.0_real64*minval(mpi_wl_hist, MASK=(mpi_wl_hist > min_val))/(sum(mpi_wl_hist, &
         MASK=(mpi_wl_hist > min_val))/count(MASK=(mpi_wl_hist > min_val)))
-        !if (my_rank == 0) then
-        !  print*, flatness, mpi_wl_hist
-        !end if
-        !print*, my_rank, flatness
 
         if (first_reset .eqv. .False. .and. count(mpi_wl_hist>min_val) > mpi_bins*0.9) then ! First reset after system had time to explore
           first_reset = .True.
@@ -196,9 +168,6 @@ module wang_landau
         else
           !Check if we're flatness_tolerance% flat
           if (flatness > flatness_tolerance .and. count(mpi_wl_hist>min_val) > mpi_bins*0.9) then
-            !if (my_rank == 0) then
-            !  print*, flatness, mpi_wl_hist
-            !end if
             !Reset the histogram
             resets = resets + 1
             mpi_wl_hist = 0.0_real64
@@ -213,45 +182,31 @@ module wang_landau
             !wl_logdos = wl_logdos - minval(wl_logdos, MASK=(wl_logdos > min_val))!wl_logdos_min
             !wl_logdos = ABS(wl_logdos * merge(0, 1, wl_logdos < 0.0_real64))
 
-            !wl_logdos = wl_logdos/SUM(wl_logdos)
-
             !Average DoS across walkers
             do i=1, num_windows
                 if (mpi_index == i) then
                   if (my_rank /= (i-1)*num_walkers) then
-                    !print*, my_rank, wl_logdos
                     call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, (i-1)*num_walkers, i, MPI_COMM_WORLD, ierror)
-                    !print*, my_rank, "First send to       ", (i-1)*num_walkers
                   end if
-                  
                   call comms_wait()
-
                   if (my_rank == (i-1)*num_walkers) then
                     do j=1, num_walkers-1
                       call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i-1)*num_walkers+j, i, MPI_COMM_WORLD, &
                       MPI_STATUS_IGNORE, ierror)
-                      !print*, my_rank, "First recieve from  ", (i-1)*num_walkers+j
-                      !print*, my_rank, wl_logdos
                       wl_logdos = wl_logdos + wl_logdos_buffer
                     end do
                   end if
-
                   call comms_wait()
-                 
                   if (my_rank == (i-1)*num_walkers) then
                     wl_logdos = wl_logdos/num_walkers
-                    !print*, my_rank, wl_logdos
                     do j=1, num_walkers-1
                       call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, (i-1)*num_walkers+j, i, MPI_COMM_WORLD, &
                       ierror)
-                      !print*, my_rank, "Second send to      ", (i-1)*num_walkers+j
                     end do
                   else
                     call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i-1)*num_walkers, i, MPI_COMM_WORLD, &
                     MPI_STATUS_IGNORE, ierror)
-                    !print*, my_rank, "Second recieve from ", (i-1)*num_walkers
                     wl_logdos = wl_logdos_buffer
-                    !print*, my_rank, wl_logdos
                   end if
                 end if
             end do
@@ -265,12 +220,13 @@ module wang_landau
 
           if(my_rank == 0) then
               wl_logdos_write = wl_logdos
-              write(6,'(a,i0,a,f6.2,a,f12.10,a,f8.2,a,f8.2,a)', advance='no'), "Rank: ", my_rank, " Flatness: ", flatness, &
+              write(6,'(a,i0,a,f6.2,a,f12.10,a,f8.2,a,f8.2,a)', advance='no') "Rank: ", my_rank, " Flatness: ", flatness, &
               "% W-L F: ", wl_f_prev, " Time min:", time_min, "s Time max:", time_max, "s"
               wl_f_prev = wl_f
               write(*,*)
           end if
-          
+
+          ! MPI send and recieve calls for combining window DoS          
           do i=2, num_windows
             if (my_rank == (i-1)*num_walkers) then
               call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD, ierror)
@@ -280,30 +236,24 @@ module wang_landau
             if (my_rank == 0) then
               call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i-1)*num_walkers, 0, MPI_COMM_WORLD, &
                             MPI_STATUS_IGNORE, ierror)
-              !print*, my_rank, wl_logdos_buffer
               call MPI_Recv(mpi_start_idx_buffer, 1, MPI_INT, (i-1)*num_walkers, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
               call MPI_Recv(mpi_end_idx_buffer, 1, MPI_INT, (i-1)*num_walkers, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
               scale_factor = 0.0_real64
               scale_count = 0.0_real64
               do j=0, bin_overlap-1
-                !print*, wl_logdos(mpi_start_idx+j),  wl_logdos_buffer(mpi_start_idx+j)
                 if (wl_logdos_buffer(mpi_start_idx_buffer+j) > min_val .and. wl_logdos_write(mpi_start_idx_buffer+j) > min_val) then
                   scale_factor = scale_factor + wl_logdos_write(mpi_start_idx_buffer+j) - wl_logdos_buffer(mpi_start_idx_buffer+j)
                   scale_count = scale_count + 1.0_real64
                 end if
               end do
               scale_factor = scale_factor/scale_count
-              !print*, scale_factor, scale_count
               do j=mpi_start_idx_buffer+bin_overlap, mpi_end_idx_buffer
                 wl_logdos_write(j) = wl_logdos_buffer(j) + scale_factor
               end do
-              !print*, "buffer", scale_factor, wl_logdos_buffer
-              !print*, "write", scale_factor, wl_logdos
             end if
           end do
 
           if (my_rank == 0) then
-            !print*, wl_logdos_write
             ! Write output files
             call ncdf_writer_1d("wl_dos_bins.dat", ierr, bin_edges)
             call ncdf_writer_1d("wl_dos.dat", ierr, wl_logdos_write)
@@ -341,16 +291,15 @@ module wang_landau
 
       integer, dimension(4) :: rdm1, rdm2
       real(real64) :: e_swapped, e_unswapped, delta_e, beta
-      integer :: acceptance, i, ibin, jbin, mpi_ibin, mpi_jbin
+      integer :: acceptance, i, ibin, jbin
       integer(int16) :: site1, site2
 
-    ! Store inverse temp
+      ! Set inverse temp
       beta = 1.0_real64/temp
 
       ! Establish total energy before any moves
       e_unswapped = setup%full_energy(config)
       e_swapped = e_unswapped
-
       acceptance = 0.0_real64
 
       do i=1, wl_setup%mc_sweeps*setup%n_atoms
@@ -397,15 +346,13 @@ module wang_landau
 
   end function run_wl_sweeps
 
-  subroutine wl_burn_in(setup, wl_setup, config, target_energy, min_e, max_e)
+  subroutine wl_burn_in(setup, config, target_energy, min_e, max_e)
       integer(int16), dimension(:,:,:,:) :: config
       class(run_params), intent(in) :: setup
-      class(wl_params), intent(in) :: wl_setup
       real(real64), intent(in) :: target_energy, min_e, max_e
 
       integer, dimension(4) :: rdm1, rdm2
-      real(real64) :: e_swapped, e_unswapped, delta_e, beta
-      integer :: i
+      real(real64) :: e_swapped, e_unswapped, delta_e
       integer(int16) :: site1, site2
 
       ! Establish total energy before any moves
