@@ -28,20 +28,20 @@ module tmmc
     ! Rank of this processor
     integer, intent(in) :: my_rank
     integer :: ierror, num_proc
-    logical :: bin_file_exists
 
-    ! Arrays for storing data
+    ! Input file data types
     type(run_params) :: setup
     type(tmmc_params) :: tmmc_setup
 
-    ! Integers used in calculations
-    integer :: i, j, ierr, bins
+    ! Loop integers and error handling variable
+    integer :: i, j, ierr
 
     ! Temperature and temperature steps
-    real(real64) :: temp, acceptance, beta
+    real(real64) :: temp, beta
 
     ! tmmc variables and arrays
-    real(real64) :: bin_width, energy_to_ry, target_energy
+    integer :: bins
+    real(real64) :: bin_width, energy_to_ry, target_energy, acceptance
     real(real64), allocatable :: bin_edges(:), probability_dist(:), bin_probability(:), bin_probability_buffer(:), &
                                  energy_bias(:)
     real(real64), allocatable :: trans_matrix(:, :), norm_trans_matrix(:, :), trans_matrix_buffer(:, :), energy_bias_all(:, :)
@@ -58,9 +58,8 @@ module tmmc
     ! Get number of MPI processes
     call MPI_COMM_SIZE(MPI_COMM_WORLD, num_proc, ierror)
     tmmc_setup%mc_sweeps = tmmc_setup%mc_sweeps/tmmc_setup%weight_update
-    print*, tmmc_setup%mc_sweeps
 
-    ! Allocate arrays
+    ! Check if number of MPI processes is divisible by number of windows
     bins = tmmc_setup%bins
     num_windows = tmmc_setup%num_windows
     num_walkers = num_proc/num_windows
@@ -74,8 +73,8 @@ module tmmc
       call EXIT(0)
     end if 
 
+    ! Get start and end indices for energy windows
     allocate(window_indices(num_windows, 2))
-
     bin_overlap = tmmc_setup%bin_overlap
     do i=1, num_windows
       window_indices(i,1) = max((i-1)*(bins/num_windows) + 1 - bin_overlap, 1)
@@ -87,12 +86,17 @@ module tmmc
     mpi_end_idx = window_indices(mpi_index,2)
     mpi_bins = mpi_end_idx - mpi_start_idx + 1
 
+    ! Allocate arrays
     allocate (bin_edges(bins + 1))
     allocate (probability_dist(bins))
     allocate (bin_probability(bins))
     allocate (trans_matrix(bins, bins))
     allocate (norm_trans_matrix(bins, bins))
     allocate (energy_bias(bins))
+
+    ! MPI arrays
+    allocate (mpi_bin_edges(mpi_bins + 1))
+    allocate (energy_bias_mpi(mpi_bins))
     if (my_rank == 0) then
       allocate (trans_matrix_buffer(bins, bins))
       allocate (bin_probability_buffer(bins))
@@ -100,27 +104,16 @@ module tmmc
       allocate (energy_bias_all(bins, tmmc_setup%weight_update))
     end if
 
-    ! MPI arrays
-    allocate (mpi_bin_edges(mpi_bins + 1))
-    allocate (energy_bias_mpi(mpi_bins))
-
-    ! Set temperature
+    ! Set temperature in appropriate units for simulation
     temp = setup%T*k_b_in_Ry
+    beta = 1.0_real64/temp
 
     ! Conversion meV/atom to Rydberg
     energy_to_ry = setup%n_atoms/(eV_to_Ry*1000)
 
-    !---------------------------------!
-    ! Initialise tmmc arrays and bins !
-    !---------------------------------!
-    inquire(file="bin_edges1.dat", exist=bin_file_exists)
-    if (bin_file_exists) then
-      call read_1D_array("bin_edges.dat", "grid data", bin_edges)
-    end if
-
+    ! Create energy bins and set mpi bins
     j = 1
     bin_width = (tmmc_setup%energy_max - tmmc_setup%energy_min)/real(tmmc_setup%bins)*energy_to_ry
-
     do i=1, bins+1
       bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i-1)*bin_width
     end do
@@ -130,23 +123,17 @@ module tmmc
       j = j + 1
     end do
 
+    ! Target energy for burn in
     target_energy = (mpi_bin_edges(1) + mpi_bin_edges(SIZE(mpi_bin_edges)))/2
 
+    ! Initialise
     energy_bias = 0.0_real64; probability_dist = 0.0_real64
     trans_matrix = 0.0_real64; norm_trans_matrix = 0.0_real64
     bin_probability = 0.0_real64
 
     ! Set up the lattice
     call initial_setup(setup, config)
-
     call lattice_shells(setup, shells, config)
-
-    ! Are we swapping neighbours or on the whole lattice?
-    if (setup%nbr_swap) then
-      setup%mc_step => monte_carlo_step_nbr
-    else
-      setup%mc_step => monte_carlo_step_lattice
-    end if
 
     if (my_rank == 0) then
       write (6, '(/,72("-"),/)')
@@ -157,8 +144,6 @@ module tmmc
     !---------!
     ! Burn in !
     !---------!
-    !print*, my_rank, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges)
-    beta = 1.0_real64/temp
     call tmmc_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
     call comms_wait()
     
@@ -169,12 +154,8 @@ module tmmc
       write(*,*)
     end if
 
-    !print*, my_rank, minval(mpi_bin_edges), maxval(mpi_bin_edges), setup%full_energy(config), &
-    !acceptance, tmmc_setup%mc_sweeps, setup%n_atoms
-    !print*, my_rank, bin_index(setup%full_energy(config), mpi_bin_edges, mpi_bins)
-
     !--------------------!
-    ! Target Temperature !
+    ! Main Loop          !
     !--------------------!
     do i = 1, tmmc_setup%weight_update
       start = MPI_Wtime()
@@ -182,15 +163,11 @@ module tmmc
       acceptance = run_tmmc_sweeps(setup, tmmc_setup, config, temp, bins, &
                                    bin_edges, mpi_start_idx, mpi_end_idx, energy_bias, trans_matrix, bin_probability)
 
-      !if (my_rank == 7) then
-      !  print*, my_rank, bin_probability
-      !end if
       call comms_wait()
       tmmc_time = MPI_Wtime()
 
       call MPI_REDUCE(trans_matrix, trans_matrix_buffer, bins*bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
       call MPI_REDUCE(bin_probability, bin_probability_buffer, bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
-      !call comms_wait()
       reduce_time = MPI_Wtime()
 
       if (my_rank == 0) then
@@ -198,15 +175,12 @@ module tmmc
         bins, bin_edges, bin_width, beta, 1)
         ! Write output files
         call ncdf_writer_1d("dos_bins.dat", ierr, bin_edges)
-
         call ncdf_writer_1d("dos_probability.dat", ierr, probability_dist)
-
         call ncdf_writer_1d("bin_probability.dat", ierr, bin_probability_buffer)
-
         call ncdf_writer_2d("energy_bias_all.dat", ierr, energy_bias_all)
-
         call ncdf_writer_2d("transition_matrix.dat", ierr, trans_matrix_buffer)
       end if
+      
       call comms_wait()
       bias_time = MPI_Wtime()
       call MPI_Bcast(energy_bias, bins, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierror)
@@ -222,10 +196,11 @@ module tmmc
       end if
     end do
 
+    !----------------------------!
+    ! Write final output files   !
+    !----------------------------!
     call MPI_REDUCE(trans_matrix, trans_matrix_buffer, bins*bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
-
     call MPI_REDUCE(bin_probability, bin_probability_buffer, bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
-
     if (my_rank == 0) then
       call bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, trans_matrix_buffer, &
                         bins, bin_edges, bin_width, temp, 0)
@@ -235,13 +210,9 @@ module tmmc
 
       ! Write output files
       call ncdf_writer_1d("dos_bins.dat", ierr, bin_edges)
-
       call ncdf_writer_1d("dos_probability.dat", ierr, probability_dist)
-
       call ncdf_writer_1d("bin_probability.dat", ierr, bin_probability)
-
       call ncdf_writer_2d("energy_bias_all.dat", ierr, energy_bias_all)
-
       call ncdf_writer_2d("transition_matrix.dat", ierr, trans_matrix_buffer)
     end if
 
@@ -377,7 +348,7 @@ module tmmc
     integer :: acceptance, i, ibin, jbin
     integer(int16) :: site1, site2
 
-    ! Store inverse temp
+    ! inverse temp
     beta = 1.0_real64/temp
 
     ! Establish total energy before any moves
@@ -387,7 +358,6 @@ module tmmc
     acceptance = 0.0_real64
 
     do i = 1, tmmc_setup%mc_sweeps*setup%n_atoms
-
       ! Make one MC trial
       ! Generate random numbers
       rdm1 = setup%rdm_site()
@@ -399,19 +369,13 @@ module tmmc
 
       call pair_swap(config, rdm1, rdm2)
 
+      ! Compute energy if sites have different elements
       if (site1 /= site2) then
         e_swapped = setup%full_energy(config)
       end if
 
       ibin = bin_index(e_unswapped, bin_edges, bins)
       jbin = bin_index(e_swapped, bin_edges, bins)
-
-      !ibin_mpi = bin_index(e_unswapped, mpi_bin_edges, mpi_bins)
-      !jbin_mpi = bin_index(e_swapped, mpi_bin_edges, mpi_bins)
-
-      !if (my_rank == 7) then
-      !  print*, ibin, jbin, mpi_start_idx, mpi_end_idx
-      !end if
 
       ! Only compute energy change if within limits where V is defined
       if (jbin > 0 .and. jbin < bins + 1) then
@@ -447,7 +411,6 @@ module tmmc
         call pair_swap(config, rdm1, rdm2)
       end if
     end do
-
   end function run_tmmc_sweeps
 
   subroutine tmmc_burn_in(setup, config, target_energy, min_e, max_e)
@@ -475,6 +438,7 @@ module tmmc
         site1 = config(rdm1(1), rdm1(2), rdm1(3), rdm1(4))
         site2 = config(rdm2(1), rdm2(2), rdm2(3), rdm2(4))
   
+        ! If sites different proceed
         if (site1 /= site2) then
           call pair_swap(config, rdm1, rdm2)
           e_swapped = setup%full_energy(config)
@@ -489,7 +453,6 @@ module tmmc
           else if (genrand() .lt. 0.01_real64) then ! to prevent getting stuck in local minimum
             e_unswapped = e_swapped
           else
-            !print*, "Reject"
             call pair_swap(config, rdm1, rdm2)
           end if
         end if
