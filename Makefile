@@ -59,7 +59,7 @@ endif
 
 # Command to use for linking and executable
 LD=$(FC)
-EXE=bontewarlo.run
+EXE=brawl.run
 
 SRCFILES=mt19937ar.c kinds.f90 shared_data.f90 io.f90 comms.f90 write_netcdf.f90 write_xyz.f90 \
 	     write_diagnostics.f90 command_line.f90 c_functions.f90 display.f90 \
