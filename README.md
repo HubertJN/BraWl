@@ -1,4 +1,4 @@
-# Bonte Warlo
+# BraWl
 
 A code for performing lattice-based atomistic simulations of alloys with an internal energy given by a Bragg-Williams Hamiltonian. The code will be periodically updated so it is best to check the GitHub repository.
 
@@ -24,7 +24,7 @@ A full list of publications obtained using this code is:
 * C. D. Woodgate, G. A. Marchant, L. B. Pártay, J. B. Staunton, [arXiv:2404.13173](https://doi.org/10.48550/arXiv.2404.13173).
 
 ## Compilation
-At the moment the code is only tested with gfortran and OpenMPI. Put the code in a directory like `~/codes/bontewarlo`. It is my intention to test other compilers in future: watch this space!
+At the moment the code is only tested with gfortran and OpenMPI. Put the code in a directory like `~/codes/BraWl`. It is my intention to test other compilers in future: watch this space!
 
 On the Warwick SCRTP system, which uses environment modules, run
 ```
@@ -37,7 +37,7 @@ make compiler=gfortran
 ```
 and run it in a directory with a suitable input file via
 ```
-~/codes/bontewarlo/bontewarlo.run
+~/codes/BraWl/brawl.run
 ```
 
 ## Running the code
