@@ -225,6 +225,11 @@ module io
 
   end subroutine read_control_file
 
+  !--------------------------------------------------------------------!
+  ! Subroutine to print that the input file is being parsed to screen  !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
   subroutine print_parse()
 
     print*, '###############################'
@@ -232,6 +237,11 @@ module io
 
   end subroutine print_parse
 
+  !--------------------------------------------------------------------!
+  ! Subroutine to echo the input file to the screen                    !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
   subroutine echo_control_file(parameters)
     type(run_params) :: parameters
     integer :: i
@@ -270,9 +280,11 @@ module io
 
   end subroutine echo_control_file
 
-  !-----------------------------------------------------!
-  ! Subroutine to read in exchange parameters from file !
-  !-----------------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Subroutine to read in exchange parameters from file                !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
   subroutine read_exchange(setup, my_rank)
     type(run_params) , intent(in) :: setup
     integer :: my_rank
@@ -297,9 +309,11 @@ module io
 
   end subroutine read_exchange
 
-  !------------------------------------------------------!
-  ! Subroutine to parse in exchange parameters from file !
-  !------------------------------------------------------!
+  !--------------------------------------------------------------------!
+  ! Subroutine to parse command-line arguments and look for input file !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
   subroutine parse_inputs(setup, my_rank)
     type(run_params) :: setup
     integer :: my_rank
