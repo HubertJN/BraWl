@@ -213,7 +213,7 @@ module analytics
   ! Function to compute radial densities, i.e. atomic short-range      !
   ! order parameters.                                                  !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2024 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function radial_densities(setup, configuration, n_shells,            &
                             shell_distances) result(r_densities)
@@ -225,6 +225,7 @@ module analytics
     integer, intent(in) :: n_shells
     integer :: i_1,i_2,i_3,j_1,j_2,j_3,j_b,jj_1,jj_2,jj_3, &
                l, species_i, species_j, i,j, i_b
+    integer :: loop_1, loop_2, loop_3
     integer, dimension(setup%n_species) :: particle_counts
     real(real64) :: distance, d_x, d_y, d_z
 
@@ -237,7 +238,8 @@ module analytics
         do i_1=1, setup%n_1*2
           do i_b=1, setup%n_basis
             do l=1, setup%n_species
-              if (configuration(i_b, i_1, i_2, i_3) .eq. int(l, kind=int16)) then
+              if (configuration(i_b, i_1, i_2, i_3) .eq.              &
+                                int(l, kind=int16)) then
                 particle_counts(l) = particle_counts(l) + 1
               end if
             end do
@@ -245,6 +247,11 @@ module analytics
         end do
       end do
     end do
+
+    ! For small systems, limit loop size to prevent double counting
+    loop_1 = min(setup%n_1, 5)
+    loop_2 = min(setup%n_2, 5)
+    loop_3 = min(setup%n_3, 5)
 
     ! Loop over all lattice sites
     do i_3=1, 2*setup%n_3
@@ -255,11 +262,11 @@ module analytics
           if (configuration(i_b, i_1, i_2, i_3) .eq. 0_int16) cycle
             ! Loop over neighbouring sites, accounting for
             ! P.B.C.s
-            do jj_3=i_3-4, i_3+4, 1
+            do jj_3=i_3-loop_3, i_3+loop_3, 1
               j_3 = modulo(jj_3-1, 2*setup%n_3) + 1
-              do jj_2=i_2-4, i_2+4, 1
+              do jj_2=i_2-loop_2, i_2+loop_2, 1
                 j_2 = modulo(jj_2-1, 2*setup%n_2) + 1
-                do jj_1=i_1-4, i_1+4, 1
+                do jj_1=i_1-loop_1, i_1+loop_1, 1
                   j_1 = modulo(jj_1-1, 2*setup%n_1) + 1
                   do j_b=1, setup%n_basis
                     if (configuration(j_b, j_1, j_2, j_3) .eq. 0_int16) cycle
