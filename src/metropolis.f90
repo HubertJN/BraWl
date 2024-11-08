@@ -228,7 +228,7 @@ module metropolis
   ! to a target temperature then draws samples N steps apart, where N  !
   ! is chosen by the user.                                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   subroutine metropolis_decorrelated_samples(setup, my_rank)
 
@@ -239,7 +239,7 @@ module metropolis
     type(run_params) :: setup
   
     ! Integers used in calculations
-    integer :: i,j, div_steps, accept, n_save_energy
+    integer :: i,j, div_steps, accept, n_save_energy, n_save_radial
     
     ! Temperature and temperature steps
     real(real64) :: beta, temp, sim_temp, current_energy, acceptance
@@ -252,7 +252,11 @@ module metropolis
 
     call lattice_shells(setup, shells, config)
 
-    n_save_energy=floor(real(setup%mc_steps)/real(setup%sample_steps))
+    n_save_energy = floor(real(setup%mc_steps)/real(setup%sample_steps))
+
+    n_save_radial = floor(real(setup%mc_steps)                         &
+                          /real(setup%radial_sample_steps))
+
     div_steps = setup%mc_steps/1000
   
     ! Are we swapping neighbours or on the whole lattice?
@@ -316,19 +320,19 @@ module metropolis
         acceptance = acceptance + accept
 
         ! Draw samples
-        if (mod(i, setup%sample_steps) .eq. 0) then
+        if (mod(i, setup%radial_sample_steps) .eq. 0) then
 
           ! Get the energy of this configuration
           current_energy = setup%full_energy(config)
 
           write(xyz_file, '(A11 I3.3 A8 I4.4 A6 I4.4 F2.1 A4)') &
           'grids/proc_', my_rank, '_config_',                   &
-          int(i/setup%sample_steps), '_at_T_', int(temp),       &
+          int(i/setup%radial_sample_steps), '_at_T_', int(temp),&
           temp-int(temp),'.xyz'
 
           ! Write xyz file
           call xyz_writer(xyz_file, config, setup)
-  
+ 
           if (my_rank == 0) then
             write(6,'(a,i7,a,/)',advance='yes') &
             " Accepted an additional ", int(acceptance), " Monte Carlo moves before sample."
