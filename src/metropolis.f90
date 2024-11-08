@@ -351,9 +351,9 @@ module metropolis
   end subroutine metropolis_decorrelated_samples
 
   !--------------------------------------------------------------------!
-  ! Runs one MC step assuming pairs swapped across entire lattice      !
+  ! Runs one MC step assuming pairs swapped across entire lattice.     !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function monte_carlo_step_lattice(setup, config, beta) result(accept)
     !integer(int16), allocatable, dimension(:,:,:,:) :: config
@@ -365,37 +365,53 @@ module metropolis
     real(real64) :: e_unswapped, e_swapped, delta_e
     integer(int16) :: site1, site2
 
-    ! Generate random numbers
+    ! Pick two random sites on the lattice
     rdm1 = setup%rdm_site()
     rdm2 = setup%rdm_site()
 
-    ! Get what is on those sites
+    ! Find out which atoms are on those sites
     site1 = config(rdm1(1), rdm1(2), rdm1(3), rdm1(4))
     site2 = config(rdm2(1), rdm2(2), rdm2(3), rdm2(4))
 
-    ! Don't do anything if same species
+    ! If they are the same chemical species, we don't need to proceed
+    ! further
+    ! Note: currently this is counted as an 'unaccepted' move
     if (site1 == site2) then
       accept = 0
       return
     end if
 
+    ! Get the energy associated with the current configuration
+    ! Note: This is a 'local' evaluation - as the interaction is
+    !       short-ranged in real space, we do not need to evaluate the
+    !       energy of the entire cell for large cells.
     e_unswapped = pair_energy(setup, config, rdm1, rdm2)
 
+    ! Trial a swap of the selected pair of atoms
     call pair_swap(config, rdm1, rdm2)
 
+    ! Evaluate the energy if the pair of atoms is swapped
     e_swapped = pair_energy(setup, config, rdm1, rdm2)   
 
+    ! Assess the change in energy as a result of the swap
     delta_e = e_swapped - e_unswapped
 
-    ! MC swap
+    ! Metropolis condition
+    ! If the change in energy is negative, always accept it
     if(delta_e .lt. 0.0_real64) then
       accept = 1
       return
+
+    ! Else, if the change in energy is positive, accept it 
+    ! if exp(-beta*deltaE) > chosen random number in [0,1]
     else if (genrand() .lt. exp(-beta*delta_E)) then
       accept = 1
       return
+
+    ! Otherwise, swap is rejected
     else
       accept = 0
+      ! As swap has been rejected, swap the pair of atoms back
       call pair_swap(config, rdm1, rdm2)
     end if
 
@@ -416,37 +432,53 @@ module metropolis
     real(real64) :: e_unswapped, e_swapped, delta_e
     integer(int16) :: site1, site2
 
-    ! Generate random numbers
+    ! Pick a random site on the lattice and its neighbour
     rdm1 = setup%rdm_site()
     rdm2 = setup%rdm_nbr(rdm1)
 
-    ! Get what is on those sites
+    ! Find out which atoms are on those sites
     site1 = config(rdm1(1), rdm1(2), rdm1(3), rdm1(4))
     site2 = config(rdm2(1), rdm2(2), rdm2(3), rdm2(4))
 
-    ! Don't do anything if same species
+    ! If they are the same chemical species, we don't need to proceed
+    ! further
+    ! Note: currently this is counted as an 'unaccepted' move
     if (site1 == site2) then
       accept=0
       return
     end if
 
+    ! Get the energy associated with the current configuration
+    ! Note: This is a 'local' evaluation - as the interaction is
+    !       short-ranged in real space, we do not need to evaluate the
+    !       energy of the entire cell for large cells.
     e_unswapped = pair_energy(setup, config, rdm1, rdm2)
 
+    ! Trial a swap of the selected pair of atoms
     call pair_swap(config, rdm1, rdm2)
 
+    ! Evaluate the energy if the pair of atoms is swapped
     e_swapped = pair_energy(setup, config, rdm1, rdm2)   
 
+    ! Assess the change in energy as a result of the swap
     delta_e = e_swapped - e_unswapped
 
-    ! MC swap
+    ! Metropolis condition
+    ! If the change in energy is negative, always accept it
     if(delta_e .lt. 0.0_real64) then
       accept = 1
       return
+
+    ! Else, if the change in energy is positive, accept it 
+    ! if exp(-beta*deltaE) > chosen random number in [0,1]
     else if (genrand() .lt. exp(-beta*delta_E)) then
       accept = 1
       return
+
+    ! Otherwise, swap is rejected
     else
       accept = 0
+      ! As swap has been rejected, swap the pair of atoms back
       call pair_swap(config, rdm1, rdm2)
     end if
 
