@@ -46,6 +46,7 @@ contains
     ! mpi variables
     real(real64) :: start, end, time_max, time_min
     integer :: mpi_bins, mpi_start_idx, mpi_end_idx, bin_overlap, mpi_index, mpi_start_idx_buffer, mpi_end_idx_buffer
+    integer, allocatable :: intervals(:,:)
     real(real64) :: scale_factor, scale_count, wl_logdos_min
     real(real64), allocatable :: mpi_bin_edges(:), mpi_wl_hist(:), wl_logdos_buffer(:), wl_logdos_write(:)
 
@@ -71,6 +72,9 @@ contains
 
     ! Get start and end indices for energy windows
     allocate (window_indices(num_windows, 2))
+    allocate(intervals(num_windows, 2))
+    
+    call divide_range(1, bins, num_windows, intervals)
     bin_overlap = wl_setup%bin_overlap
     do i = 1, num_windows
       window_indices(i, 1) = max((i - 1)*(bins/num_windows) + 1 - bin_overlap, 1)
@@ -91,9 +95,13 @@ contains
     ! MPI arrays
     allocate (mpi_bin_edges(mpi_bins + 1))
     allocate (mpi_wl_hist(mpi_bins))
+
     if (my_rank == 0) then
       allocate (wl_logdos_write(bins))
     end if
+
+    call divide_range(1, bins, num_windows, intervals)
+    call  exit()
 
     !  Set temperature in appropriate units for simulation
     temp = setup%T*k_b_in_Ry
@@ -158,28 +166,24 @@ contains
       acceptance = run_wl_sweeps(setup, wl_setup, config, temp, bins, bin_edges, mpi_start_idx, mpi_end_idx, &
                                  mpi_wl_hist, wl_logdos, wl_f)
 
-      flatness = 100.0_real64*minval(mpi_wl_hist, MASK=(mpi_wl_hist > min_val))/(sum(mpi_wl_hist, &
-                                     MASK=(mpi_wl_hist > min_val))/count(MASK=(mpi_wl_hist > min_val)))
+      flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
 
-      if (first_reset .eqv. .False. .and. count(mpi_wl_hist > min_val) > mpi_bins*0.9) then ! First reset after system had time to explore
+      if (first_reset .eqv. .False. .and. minval(mpi_wl_hist) > 10) then ! First reset after system had time to explore
         first_reset = .True.
         mpi_wl_hist = 0.0_real64
       else
         !Check if we're flatness_tolerance% flat
-        if (flatness > flatness_tolerance .and. count(mpi_wl_hist > min_val) > mpi_bins*0.9) then
+        if (flatness > flatness_tolerance .and. minval(mpi_wl_hist) > 10) then
           !Reset the histogram
-          resets = resets + 1
           mpi_wl_hist = 0.0_real64
           hist_reset = .True.
           !Reduce f
-          wl_f = wl_f*1/(resets)
+          wl_f = wl_f*1/2
           ! End timer
           end = mpi_wtime()
 
-          !call MPI_ALLREDUCE(minval(wl_logdos, MASK=(wl_logdos > min_val)), wl_logdos_min, 1, MPI_DOUBLE_PRECISION, &
-          !MPI_MIN, MPI_COMM_WORLD, ierror)
-          !wl_logdos = wl_logdos - minval(wl_logdos, MASK=(wl_logdos > min_val))!wl_logdos_min
-          !wl_logdos = ABS(wl_logdos * merge(0, 1, wl_logdos < 0.0_real64))
+          wl_logdos = wl_logdos - minval(wl_logdos, MASK=(wl_logdos > 0.0_real64))!wl_logdos_min
+          wl_logdos = ABS(wl_logdos * merge(0, 1, wl_logdos < 0.0_real64))
 
           !Average DoS across walkers
           do i = 1, num_windows
@@ -219,7 +223,7 @@ contains
 
         if (my_rank == 0) then
           wl_logdos_write = wl_logdos
-          write (6, '(a,i0,a,f6.2,a,f12.10,a,f8.2,a,f8.2,a)', advance='no') "Rank: ", my_rank, " Flatness: ", flatness, &
+          write (6, '(a,i0,a,f6.2,a,f12.10,a,f8.2,a,f8.2,a)', advance='no') "Rank: ", my_rank, " Flatness: ", flatness*100, &
             "% W-L F: ", wl_f_prev, " Time min:", time_min, "s Time max:", time_max, "s"
           wl_f_prev = wl_f
           write (*, *)
@@ -381,7 +385,7 @@ contains
           e_unswapped = e_swapped
         else if (e_swapped < target_energy .and. delta_e > 0) then
           e_unswapped = e_swapped
-        else if (genrand() .lt. 0.01_real64) then ! to prevent getting stuck in local minimum
+        else if (genrand() .lt. 0.001_real64) then ! to prevent getting stuck in local minimum
           e_unswapped = e_swapped
         else
           call pair_swap(config, rdm1, rdm2)
@@ -389,5 +393,30 @@ contains
       end if
     end do
   end subroutine wl_burn_in
+
+  subroutine divide_range(start, finish, num_intervals, intervals)
+    integer, intent(in) :: num_intervals
+    integer, intent(in) :: start, finish
+    integer, intent(out) :: intervals(num_intervals, 2)
+    real(real64) :: factor, index
+    integer :: i
+
+    intervals(1,1) = start
+    intervals(num_intervals,2) = finish
+
+    factor = real((finish-1))/real(((num_intervals+1)**2-1))
+
+    print*, FLOOR(factor*(1**2-1)+1)
+
+    do i = 2, num_intervals
+      print*, FLOOR(factor*(i**2-1)+1)
+      index = FLOOR(factor*(i**2-1)+1)
+      print*, index
+      intervals(i-1,2) = index
+      intervals(i,1) = index + 1
+    end do
+    print*, intervals(:,1)
+    print*, intervals(:,2)
+  end subroutine divide_range
 
 end module wang_landau
