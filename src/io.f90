@@ -642,7 +642,7 @@ module io
   subroutine read_es_file(filename, parameters, my_rank)
     integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(5) :: check
+    logical, dimension(1) :: check
     type(es_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -684,30 +684,6 @@ module io
             print*, '# Read mc_sweeps = ', parameters%mc_sweeps
           end if
           check(1) = .true.
-        case ('unique_energy_count')
-          read(buffer, *, iostat=ios) parameters%unique_energy_count
-          if (my_rank == 0) then
-            print*, '# Read unique_energy_count = ', parameters%unique_energy_count
-          end if
-          check(2) = .true.
-       case ('bins')
-          read(buffer, *, iostat=ios) parameters%bins
-          if (my_rank == 0) then
-            print*, '# Read bins = ', parameters%bins
-          end if
-          check(3) = .true.
-       case ('energy_min')
-          read(buffer, *, iostat=ios) parameters%energy_min
-          if (my_rank == 0) then
-            print*, '# Read energy_min = ', parameters%energy_min
-          end if
-          check(4) = .true.
-        case ('energy_max')
-          read(buffer, *, iostat=ios) parameters%energy_max
-          if (my_rank == 0) then
-            print*, '# Read energy_max = ', parameters%energy_max
-        end if
-          check(5) = .true.
         case default
           if (my_rank == 0) then
             print*, '# Skipping invalid label'
