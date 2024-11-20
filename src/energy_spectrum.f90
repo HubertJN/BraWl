@@ -34,16 +34,6 @@ module energy_spectrum
     ! Temperature and temperature steps
     real(real64) :: acceptance, step, energy_to_ry, min_energy
 
-    real(real64), allocatable :: energy_spectrum(:), energy_spectrum_condensed(:), bin_edges(:)
-    integer, allocatable :: energy_spectrum_sort(:)
-
-    energy_to_ry = setup%n_atoms/(eV_to_Ry*1000)
-
-    allocate (energy_spectrum(es_setup%unique_energy_count))
-    allocate (bin_edges(es_setup%bins + 1))
-    energy_spectrum = 10000.0_real64
-    unique_energy = 1
-
     ! Set up the lattice
     call initial_setup(setup, config)
 
