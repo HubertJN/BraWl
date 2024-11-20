@@ -133,7 +133,7 @@ module shared_data
     ! Number of energy windows
     integer :: num_windows
     ! Number of bins in the overlap region
-    integer :: bin_overlap
+    real :: bin_overlap
     ! Number of bias weight updates
     integer :: weight_update
     ! Energy range minimum
@@ -156,7 +156,7 @@ module shared_data
     ! Number of energy windows
     integer :: num_windows
     ! Number of bins in the overlap region
-    integer :: bin_overlap
+    real :: bin_overlap
     ! Tolerance for wang landau
     real :: tolerance
     ! Flatness for wang landau histogram
@@ -179,14 +179,6 @@ module shared_data
   type es_params
     ! Number of mc sweeps (each sweep is n_atoms mc steps)
     integer :: mc_sweeps
-    ! Number of unique energies to be recorded
-    integer :: unique_energy_count
-    ! Number of bins across energy range
-    integer :: bins
-    ! Energy range minimum
-    real :: energy_min
-    ! Energy range maximum
-    real :: energy_max
   end type es_params
 
   !--------------------------------------------------------------------!
