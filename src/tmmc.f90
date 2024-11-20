@@ -47,8 +47,9 @@ contains
     real(real64), allocatable :: trans_matrix(:, :), norm_trans_matrix(:, :), trans_matrix_buffer(:, :), energy_bias_all(:, :)
 
     ! MPI variables
-    integer :: mpi_bins, mpi_start_idx, mpi_end_idx, bin_overlap, mpi_index
-    real(real64) :: start, end, reduce_time, bias_time, tmmc_time
+    integer :: mpi_bins, mpi_start_idx, mpi_end_idx, mpi_index
+    integer, allocatable :: intervals(:,:)
+    real(real64) :: start, end, reduce_time, bias_time, tmmc_time, bin_overlap
     real(real64), allocatable :: mpi_bin_edges(:), energy_bias_mpi(:)
 
     ! window variables
@@ -75,11 +76,20 @@ contains
 
     ! Get start and end indices for energy windows
     allocate (window_indices(num_windows, 2))
+    allocate(intervals(num_windows, 2))
+    
+    call divide_range(1, bins, num_windows, intervals)
     bin_overlap = tmmc_setup%bin_overlap
-    do i = 1, num_windows
-      window_indices(i, 1) = max((i - 1)*(bins/num_windows) + 1 - bin_overlap, 1)
-      window_indices(i, 2) = min(i*(bins/num_windows) + bin_overlap, bins)
+
+    window_indices(1, 1) = intervals(1,1)
+    window_indices(1,2) = INT(intervals(1,2) + ABS(intervals(2,1)-intervals(2,2))*bin_overlap)
+    do i = 2, num_windows-1
+      window_indices(i, 1) = INT(intervals(i,1) - ABS(intervals(i-1,1)-intervals(i-1,2))*bin_overlap)
+      window_indices(i, 2) = INT(intervals(i,2) + ABS(intervals(i+1,1)-intervals(i+1,2))*bin_overlap)
     end do
+    window_indices(num_windows, 1) = INT(intervals(num_windows,1) - ABS(intervals(num_windows-1,1) &
+                                    -intervals(num_windows-1,2))*bin_overlap)
+    window_indices(num_windows,2) = intervals(num_windows,2)
 
     mpi_index = my_rank/num_walkers + 1
     mpi_start_idx = window_indices(mpi_index, 1)
@@ -117,7 +127,6 @@ contains
     do i = 1, bins + 1
       bin_edges(i) = tmmc_setup%energy_min*energy_to_ry + (i - 1)*bin_width
     end do
-
     do i = mpi_start_idx, mpi_end_idx + 1
       mpi_bin_edges(j) = bin_edges(i)
       j = j + 1
@@ -376,6 +385,8 @@ contains
       ibin = bin_index(e_unswapped, bin_edges, bins)
       jbin = bin_index(e_swapped, bin_edges, bins)
 
+      !print*, ibin, jbin, mpi_start_idx - 1, mpi_end_idx + 1
+
       ! Only compute energy change if within limits where V is defined
       if (jbin > 0 .and. jbin < bins + 1) then
         ! Probability of staying in ibin, ignoring energy_bias
@@ -457,5 +468,26 @@ contains
       end if
     end do
   end subroutine tmmc_burn_in
+
+  subroutine divide_range(start, finish, num_intervals, intervals)
+    integer, intent(in) :: num_intervals
+    integer, intent(in) :: start, finish
+    integer, intent(out) :: intervals(num_intervals, 2)
+    real(real64) :: factor, index
+    integer :: i, power
+
+    intervals(1,1) = start
+    intervals(num_intervals,2) = finish
+
+    power = 2
+
+    factor = real((finish-1))/real(((num_intervals+1)**power-1))
+
+    do i = 2, num_intervals
+      index = FLOOR(factor*(i**2-1)+1)
+      intervals(i-1,2) = INT(index)
+      intervals(i,1) = INT(index + 1)
+    end do
+  end subroutine divide_range
 
 end module tmmc
