@@ -35,7 +35,7 @@ contains
     ! wl variables and arrays
     integer :: bins, resets
     real(real64) :: bin_width, energy_to_ry, wl_f, wl_f_prev, tolerance, flatness_tolerance
-    real(real64) :: target_energy, min_val, flatness, acceptance
+    real(real64) :: target_energy, min_val, flatness, acceptance, bins_buffer, bins_min, flatness_buffer
     real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:)
     logical :: first_reset, hist_reset
 
@@ -45,9 +45,9 @@ contains
 
     ! mpi variables
     real(real64) :: start, end, time_max, time_min
-    integer :: mpi_bins, mpi_start_idx, mpi_end_idx, bin_overlap, mpi_index, mpi_start_idx_buffer, mpi_end_idx_buffer
+    integer :: mpi_bins, mpi_start_idx, mpi_end_idx, mpi_index, mpi_start_idx_buffer, mpi_end_idx_buffer, beta_index
     integer, allocatable :: intervals(:,:)
-    real(real64) :: scale_factor, scale_count, wl_logdos_min
+    real(real64) :: scale_factor, scale_count, wl_logdos_min, bin_overlap, beta_diff, beta_original, beta_merge
     real(real64), allocatable :: mpi_bin_edges(:), mpi_wl_hist(:), wl_logdos_buffer(:), wl_logdos_write(:)
 
     ! Minimum value in array to be considered
@@ -76,10 +76,16 @@ contains
     
     call divide_range(1, bins, num_windows, intervals)
     bin_overlap = wl_setup%bin_overlap
-    do i = 1, num_windows
-      window_indices(i, 1) = max((i - 1)*(bins/num_windows) + 1 - bin_overlap, 1)
-      window_indices(i, 2) = min(i*(bins/num_windows) + bin_overlap, bins)
+
+    window_indices(1, 1) = intervals(1,1)
+    window_indices(1,2) = INT(intervals(1,2) + ABS(intervals(2,1)-intervals(2,2))*bin_overlap)
+    do i = 2, num_windows-1
+      window_indices(i, 1) = INT(intervals(i,1) - ABS(intervals(i-1,1)-intervals(i-1,2))*bin_overlap)
+      window_indices(i, 2) = INT(intervals(i,2) + ABS(intervals(i+1,1)-intervals(i+1,2))*bin_overlap)
     end do
+    window_indices(num_windows, 1) = INT(intervals(num_windows,1) - ABS(intervals(num_windows-1,1) &
+                                    -intervals(num_windows-1,2))*bin_overlap)
+    window_indices(num_windows,2) = intervals(num_windows,2)
 
     mpi_index = my_rank/num_walkers + 1
     mpi_start_idx = window_indices(mpi_index, 1)
@@ -99,9 +105,6 @@ contains
     if (my_rank == 0) then
       allocate (wl_logdos_write(bins))
     end if
-
-    call divide_range(1, bins, num_windows, intervals)
-    call  exit()
 
     !  Set temperature in appropriate units for simulation
     temp = setup%T*k_b_in_Ry
@@ -167,6 +170,17 @@ contains
                                  mpi_wl_hist, wl_logdos, wl_f)
 
       flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
+      bins_min = count(mpi_wl_hist > min_val)/REAL(mpi_bins)
+      call MPI_REDUCE(bins_min, bins_buffer, 1, MPI_DOUBLE_PRECISION, MPI_MIN, 0, &
+                      MPI_COMM_WORLD, ierror)
+                    
+      call MPI_REDUCE(flatness, flatness_buffer, 1, MPI_DOUBLE_PRECISION, MPI_MIN, 0, &
+                      MPI_COMM_WORLD, ierror)
+
+      if (my_rank == 0) then
+        write (6, '(a,f6.2,a,f6.2,a)') "Minimum percentage of bins visited:", bins_buffer*100_real64, &
+              "% | Minimum flatness:", flatness_buffer, "%"
+      end if
 
       if (first_reset .eqv. .False. .and. minval(mpi_wl_hist) > 10) then ! First reset after system had time to explore
         first_reset = .True.
@@ -209,7 +223,6 @@ contains
               else
                 call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers, i, MPI_COMM_WORLD, &
                               MPI_STATUS_IGNORE, ierror)
-                wl_logdos = wl_logdos_buffer
               end if
             end if
           end do
@@ -243,14 +256,17 @@ contains
             call MPI_Recv(mpi_end_idx_buffer, 1, MPI_INT, (i - 1)*num_walkers, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
             scale_factor = 0.0_real64
             scale_count = 0.0_real64
-            do j = 0, bin_overlap - 1
-            if (wl_logdos_buffer(mpi_start_idx_buffer + j) > min_val .and. wl_logdos_write(mpi_start_idx_buffer + j) > min_val) then
-              scale_factor = scale_factor + wl_logdos_write(mpi_start_idx_buffer + j) - wl_logdos_buffer(mpi_start_idx_buffer + j)
-              scale_count = scale_count + 1.0_real64
-            end if
+            beta_diff = wl_logdos_write(2) - wl_logdos_write(1)
+            do j = 0,  window_indices(i-1, 2) - window_indices(i, 1) - 1
+              beta_original = wl_logdos_write(mpi_start_idx_buffer + j + 1) - wl_logdos_write(mpi_start_idx_buffer + j)
+              beta_merge = wl_logdos_buffer(mpi_start_idx_buffer + j + 1) - wl_logdos_buffer(mpi_start_idx_buffer + j)
+              if (ABS(beta_original - beta_merge) < beta_diff) then
+                beta_diff = ABS(beta_original - beta_merge)
+                beta_index = mpi_start_idx_buffer + j
+              end if
             end do
-            scale_factor = scale_factor/scale_count
-            do j = mpi_start_idx_buffer + bin_overlap, mpi_end_idx_buffer
+            scale_factor = wl_logdos_write(beta_index) - wl_logdos_buffer(beta_index)
+            do j = beta_index, mpi_end_idx_buffer
               wl_logdos_write(j) = wl_logdos_buffer(j) + scale_factor
             end do
           end if
@@ -399,24 +415,20 @@ contains
     integer, intent(in) :: start, finish
     integer, intent(out) :: intervals(num_intervals, 2)
     real(real64) :: factor, index
-    integer :: i
+    integer :: i, power
 
     intervals(1,1) = start
     intervals(num_intervals,2) = finish
 
-    factor = real((finish-1))/real(((num_intervals+1)**2-1))
+    power = 2
 
-    print*, FLOOR(factor*(1**2-1)+1)
+    factor = real((finish-1))/real(((num_intervals+1)**power-1))
 
     do i = 2, num_intervals
-      print*, FLOOR(factor*(i**2-1)+1)
       index = FLOOR(factor*(i**2-1)+1)
-      print*, index
-      intervals(i-1,2) = index
-      intervals(i,1) = index + 1
+      intervals(i-1,2) = INT(index)
+      intervals(i,1) = INT(index + 1)
     end do
-    print*, intervals(:,1)
-    print*, intervals(:,2)
   end subroutine divide_range
 
 end module wang_landau
