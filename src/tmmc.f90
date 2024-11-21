@@ -473,18 +473,23 @@ contains
     integer, intent(in) :: num_intervals
     integer, intent(in) :: start, finish
     integer, intent(out) :: intervals(num_intervals, 2)
-    real(real64) :: factor, index
-    integer :: i, power
+    real(real64) :: factor, index, power, b, n, g
+    integer :: i
 
     intervals(1,1) = start
     intervals(num_intervals,2) = finish
 
-    power = 2
+    power = 2.5
+    b = finish
+    n = num_intervals + 1
+    g = 0.4
 
-    factor = real((finish-1))/real(((num_intervals+1)**power-1))
+    !factor = (b-1.0_real64)/((n+1.0_real64)**power-1.0_real64)
+    factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))
 
     do i = 2, num_intervals
-      index = FLOOR(factor*(i**2-1)+1)
+      !index = FLOOR(factor*(i**power-1)+1)
+      index = FLOOR(factor*EXP(g*i)+1-factor*EXP(g))
       intervals(i-1,2) = INT(index)
       intervals(i,1) = INT(index + 1)
     end do
