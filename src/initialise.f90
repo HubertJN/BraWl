@@ -182,10 +182,13 @@ module initialise
     type(run_params), intent(inout) :: setup
     ! Array for storing energy as a function of temperature
     allocate(energies_of_T(setup%T_steps))
+    energies_of_T = 0.0_real64
     ! Array for storing energy as a function of temperature
     allocate(C_of_T(setup%T_steps))
+    C_of_T = 0.0_real64
     ! Array for storing energy as a function of temperature
     allocate(acceptance_of_T(setup%T_steps))
+    acceptance_of_T = 0.0_real64
     ! Radial densities as a function of temperature
     allocate(rho_of_T(setup%n_species, setup%n_species, &
                      setup%wc_range, setup%T_steps))
@@ -195,8 +198,10 @@ module initialise
     shells = 0.0_real64
     ! Array for storing temperatures
     allocate(temperature(setup%T_steps))
+    temperature = 0.0_real64
     ! Allocate array for storing configuration
     allocate(config(setup%n_basis, 2*setup%n_1, 2*setup%n_2, 2*setup%n_3))
+    config = 0_int16
   end subroutine initialise_local_arrays
 
   !--------------------------------------------------------------------!
