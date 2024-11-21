@@ -148,7 +148,7 @@ module analytics
 
     ! Factor of eight to account for the fact that simulation
     ! doubles number of cells in each direction to build lattice
-    allocate(all_shells(8*setup%n_1*setup%n_2*setup%n_3*setup%n_basis))
+    allocate(all_shells(8*setup%n_1*setup%n_2*setup%n_3*setup%n_basis+1))
 
     all_shells = 0.0_real64
     shells = 0.0_real64
@@ -197,7 +197,7 @@ module analytics
     l=1
 
     ! Count the non-repeated distances
-    do i=1, size(all_shells)
+    do i=1, size(all_shells)-1
       if (abs(all_shells(i)-all_shells(i+1)) .lt. 1e-3_real64) cycle
       shells(l) = all_shells(i)
       l=l+1
