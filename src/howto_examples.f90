@@ -94,6 +94,8 @@ module howto_examples
     temp = setup%T + real(j-1, real64)*setup%delta_T
     sim_temp = temp*k_b_in_Ry
     beta = 1.0_real64/sim_temp
+
+    accept=0.0_real64
     
     do while (accept .lt. 0.5_real64)
           accept = setup%mc_step(config, beta)
