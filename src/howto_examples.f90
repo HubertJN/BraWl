@@ -125,7 +125,10 @@ module howto_examples
     ! 4. Run some kind of equillibration !
     !------------------------------------!
     n_save=floor(real(setup%mc_steps)/real(setup%sample_steps))
-    div_steps = setup%mc_steps/1000
+
+    acceptance = 0.0_real64
+    step_E = 0.0_real64
+    step_Esq = 0.0_real64
 
     do i=1, setup%mc_steps
     
@@ -145,7 +148,7 @@ module howto_examples
 
     ! Store the average energy per atom at this temperature
     energies_of_T(j) = step_E/n_save/setup%n_atoms
-  
+
     ! Heat capacity (per atom) at this temperature
     C = (step_Esq/n_save - (step_E/n_save)**2)/(sim_temp*temp)/setup%n_atoms
 
