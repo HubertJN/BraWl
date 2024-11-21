@@ -12,6 +12,7 @@ filename = "wl_dos.dat"
 wl_logdos = nc.Dataset(filename)
 wl_logdos = np.array(wl_logdos["grid data"][:], dtype=np.float64)
 
+wl_logdos = np.log(np.exp(wl_logdos)/np.sum(np.exp(wl_logdos)))
 print(wl_logdos)
 
 filename = "wl_hist.dat"
@@ -26,26 +27,12 @@ eV_to_meV = 1000
 J = 0.001
 N = 6
 
-orig_temp = 800
+orig_temp = 400
 start_temp = 100
 end_temp = 1000
 step_size = (end_temp-start_temp)/(75)
 temperatures = np.arange(start_temp, end_temp, step_size)
 
-# Reduce histogram such that all bins are non zero
-#bin_width = bin_edges[1] - bin_edges[0]
-#
-#bin_energies = np.zeros(len(bin_edges[:-1]))
-#for i, edge in enumerate(bin_edges[:-1]):
-#    bin_energies[i] = edge + 0.5*bin_width
-#
-#bin_width = bin_edges[1] - bin_edges[0]
-#
-#bins = 128
-#bin_width_con = (bin_edges[-1] - bin_edges[0])/(bins)
-#bin_edges_con = np.arange(bin_edges[0], bin_edges[-1]+bin_width_con, bin_width_con)
-#
-#bin_edges = bin_edges_con
 plt.plot(np.exp(wl_logdos))
 plt.show()
 # ------------------------------------------------
