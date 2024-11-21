@@ -317,7 +317,7 @@ module io
   subroutine parse_inputs(setup, my_rank)
     type(run_params) :: setup
     integer :: my_rank
-    character(len=30) :: control
+    character(len=30) :: control = ' '
 
     ! Parse the command line arguments
     call parse_args()
