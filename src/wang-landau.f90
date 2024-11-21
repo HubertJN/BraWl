@@ -35,9 +35,9 @@ contains
     ! wl variables and arrays
     integer :: bins, resets
     real(real64) :: bin_width, energy_to_ry, wl_f, wl_f_prev, tolerance, flatness_tolerance
-    real(real64) :: target_energy, min_val, flatness, acceptance, bins_buffer, bins_min, flatness_buffer
+    real(real64) :: target_energy, min_val, flatness, acceptance, bins_buffer, bins_min
     real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:)
-    logical :: first_reset, hist_reset
+    logical :: first_reset, hist_reset, first_hist_reset
 
     ! window variables
     integer, allocatable :: window_indices(:, :)
@@ -92,6 +92,14 @@ contains
     mpi_end_idx = window_indices(mpi_index, 2)
     mpi_bins = mpi_end_idx - mpi_start_idx + 1
 
+    if (my_rank == 0) then
+      print*, "Window Indices"
+      print*, window_indices(:, 1)
+      print*, window_indices(:, 2)
+      print*, "Window Bins"
+      print*, window_indices(:, 2) - window_indices(:, 1) + 1
+    end if
+
     ! Allocate arrays
     allocate (bin_edges(bins + 1))
     allocate (wl_hist(bins))
@@ -129,7 +137,7 @@ contains
 
     ! Initialize
     wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = wl_setup%wl_f; wl_f_prev = wl_f
-    flatness = 0.0_real64; first_reset = .False.; hist_reset = .True.
+    flatness = 0.0_real64; first_reset = .False.; hist_reset = .True.; first_hist_reset = .False.
     mpi_wl_hist = 0.0_real64; wl_logdos_buffer = 0.0_real64
 
     ! Set up the lattice
@@ -171,62 +179,57 @@ contains
 
       flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
       bins_min = count(mpi_wl_hist > min_val)/REAL(mpi_bins)
-      call MPI_REDUCE(bins_min, bins_buffer, 1, MPI_DOUBLE_PRECISION, MPI_MIN, 0, &
-                      MPI_COMM_WORLD, ierror)
-                    
-      call MPI_REDUCE(flatness, flatness_buffer, 1, MPI_DOUBLE_PRECISION, MPI_MIN, 0, &
-                      MPI_COMM_WORLD, ierror)
 
-      if (my_rank == 0) then
-        write (6, '(a,f6.2,a,f6.2,a)') "Minimum percentage of bins visited:", bins_buffer*100_real64, &
-              "% | Minimum flatness:", flatness_buffer, "%"
+      if (first_hist_reset .neqv. .True.) then
+        write (6, '(a,i0,a,f6.2,a,f6.2,a)') "Rank: ", my_rank, " | Percentage of bins visited: ", bins_min*100_real64, &
+              "% | Flatness:", flatness*100_real64, "%"
       end if
 
-      if (first_reset .eqv. .False. .and. minval(mpi_wl_hist) > 10) then ! First reset after system had time to explore
-        first_reset = .True.
-        mpi_wl_hist = 0.0_real64
-      else
-        !Check if we're flatness_tolerance% flat
-        if (flatness > flatness_tolerance .and. minval(mpi_wl_hist) > 10) then
-          !Reset the histogram
+      if (first_reset .neqv. .True.) then ! First reset after system had time to explore
+        if (minval(mpi_wl_hist) > 10.0_real64) then
+          first_reset = .True.
           mpi_wl_hist = 0.0_real64
-          hist_reset = .True.
-          !Reduce f
-          wl_f = wl_f*1/2
-          ! End timer
-          end = mpi_wtime()
-
-          wl_logdos = wl_logdos - minval(wl_logdos, MASK=(wl_logdos > 0.0_real64))!wl_logdos_min
-          wl_logdos = ABS(wl_logdos * merge(0, 1, wl_logdos < 0.0_real64))
-
-          !Average DoS across walkers
-          do i = 1, num_windows
-            if (mpi_index == i) then
-              if (my_rank /= (i - 1)*num_walkers) then
-                call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers, i, MPI_COMM_WORLD, ierror)
-              end if
-              call comms_wait()
-              if (my_rank == (i - 1)*num_walkers) then
-                do j = 1, num_walkers - 1
-                  call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers + j, i, MPI_COMM_WORLD, &
-                                MPI_STATUS_IGNORE, ierror)
-                  wl_logdos = wl_logdos + wl_logdos_buffer
-                end do
-              end if
-              call comms_wait()
-              if (my_rank == (i - 1)*num_walkers) then
-                wl_logdos = wl_logdos/num_walkers
-                do j = 1, num_walkers - 1
-                  call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers + j, i, MPI_COMM_WORLD, &
-                                ierror)
-                end do
-              else
-                call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers, i, MPI_COMM_WORLD, &
-                              MPI_STATUS_IGNORE, ierror)
-              end if
-            end if
-          end do
         end if
+      end if
+      !Check if we're flatness_tolerance% flat
+      if (flatness > flatness_tolerance .and. minval(mpi_wl_hist) > 10) then
+        !Reset the histogram
+        mpi_wl_hist = 0.0_real64
+        hist_reset = .True.
+        first_hist_reset = .True.
+        !Reduce f
+        wl_f = wl_f*1/2
+        ! End timer
+        end = mpi_wtime()
+        wl_logdos = wl_logdos - minval(wl_logdos, MASK=(wl_logdos > 0.0_real64))!wl_logdos_min
+        wl_logdos = ABS(wl_logdos * merge(0, 1, wl_logdos < 0.0_real64))
+        !Average DoS across walkers
+        do i = 1, num_windows
+          if (mpi_index == i) then
+            if (my_rank /= (i - 1)*num_walkers) then
+              call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers, i, MPI_COMM_WORLD, ierror)
+            end if
+            call comms_wait()
+            if (my_rank == (i - 1)*num_walkers) then
+              do j = 1, num_walkers - 1
+                call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers + j, i, MPI_COMM_WORLD, &
+                              MPI_STATUS_IGNORE, ierror)
+                wl_logdos = wl_logdos + wl_logdos_buffer
+              end do
+            end if
+            call comms_wait()
+            if (my_rank == (i - 1)*num_walkers) then
+              wl_logdos = wl_logdos/num_walkers
+              do j = 1, num_walkers - 1
+                call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers + j, i, MPI_COMM_WORLD, &
+                              ierror)
+              end do
+            else
+              call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers, i, MPI_COMM_WORLD, &
+                            MPI_STATUS_IGNORE, ierror)
+            end if
+          end if
+        end do
       end if
 
       if (hist_reset .eqv. .True.) then
@@ -414,18 +417,23 @@ contains
     integer, intent(in) :: num_intervals
     integer, intent(in) :: start, finish
     integer, intent(out) :: intervals(num_intervals, 2)
-    real(real64) :: factor, index
-    integer :: i, power
+    real(real64) :: factor, index, power, b, n, g
+    integer :: i
 
     intervals(1,1) = start
     intervals(num_intervals,2) = finish
 
-    power = 2
+    power = 2.5
+    b = finish
+    n = num_intervals + 1
+    g = 0.4
 
-    factor = real((finish-1))/real(((num_intervals+1)**power-1))
+    !factor = (b-1.0_real64)/((n+1.0_real64)**power-1.0_real64)
+    factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))
 
     do i = 2, num_intervals
-      index = FLOOR(factor*(i**2-1)+1)
+      !index = FLOOR(factor*(i**power-1)+1)
+      index = FLOOR(factor*EXP(g*i)+1-factor*EXP(g))
       intervals(i-1,2) = INT(index)
       intervals(i,1) = INT(index + 1)
     end do
