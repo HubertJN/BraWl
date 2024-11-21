@@ -28,7 +28,7 @@ eV_to_meV = 1000
 J = 0.001
 N = 6
 
-orig_temp = 800
+orig_temp = 400
 start_temp = 100
 end_temp = 1000
 step_size = (end_temp-start_temp)/(75)
