@@ -16,6 +16,9 @@
 # Ignore netCDF output
 *.dat
 
+# Ignore xyz output
+*.xyz
+
 # Ignore pdfs
 *.pdf
 
