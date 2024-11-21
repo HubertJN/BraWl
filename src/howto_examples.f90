@@ -47,6 +47,9 @@ module howto_examples
     ! Name of file for writing radial densities at the end
     character(len=37) :: radial_file
 
+    ! Radial densities array (to populate)
+    real(real64), allocatable, dimension(:,:,:) :: r_densities
+
     ! This is for calculating radial density functions later
     ! (It populates the array "shells".)
     call lattice_shells(setup, shells, config)
@@ -178,14 +181,16 @@ module howto_examples
     ! 6. Compute the Warren-Cowley ASRO parameters and write to file !
     !----------------------------------------------------------------!
 
-    ! Compute the radial densities at the end of this temperature
-    call radial_densities(setup, config, setup%wc_range, shells, rho_of_T, j)
+    ! Work out how to find each shell
+    call lattice_shells(setup, shells, config)
+
+    ! Compute the radial densities
+    r_densities = radial_densities(setup, config, setup%wc_range, shells)
   
     write(radial_file, '(A22 I3.3 A12)') 'radial_densities/proc_', my_rank, '_rho_of_T.nc'
 
     ! Write the radial densities to file
-    call ncdf_radial_density_writer(radial_file, rho_of_T, &
-                                  shells, temperature, energies_of_T, setup)
+    call ncdf_radial_density_writer_once(radial_file, r_densities, shells, setup)
 
     if(my_rank == 0) then
       write(6,'(25("-"),x,"Simulation Complete!",x,25("-"))')
