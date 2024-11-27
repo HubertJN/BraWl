@@ -155,6 +155,7 @@ contains
     ! Burn in !
     !---------!
     call wl_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
+    print*, "Rank: ", my_rank, "Burn-in complete"
     call comms_wait()
     if (my_rank == 0) then
       write (*, *)
@@ -326,6 +327,8 @@ contains
 
     do i = 1, wl_setup%mc_sweeps*setup%n_atoms
 
+      r_densities = radial_densities(setup, config, setup%wc_range, shells)
+
       ! Make one MC trial
       ! Generate random numbers
       rdm1 = setup%rdm_site()
@@ -404,7 +407,7 @@ contains
           e_unswapped = e_swapped
         else if (e_swapped < target_energy .and. delta_e > 0) then
           e_unswapped = e_swapped
-        else if (genrand() .lt. 0.001_real64) then ! to prevent getting stuck in local minimum
+        else if (genrand() .lt. 0.0001_real64) then ! to prevent getting stuck in local minimum
           e_unswapped = e_swapped
         else
           call pair_swap(config, rdm1, rdm2)
@@ -426,7 +429,7 @@ contains
     power = 2.5
     b = finish
     n = num_intervals + 1
-    g = 0.4
+    g = 0.5
 
     !factor = (b-1.0_real64)/((n+1.0_real64)**power-1.0_real64)
     factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))

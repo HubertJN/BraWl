@@ -96,6 +96,14 @@ contains
     mpi_end_idx = window_indices(mpi_index, 2)
     mpi_bins = mpi_end_idx - mpi_start_idx + 1
 
+    if (my_rank == 0) then
+      print*, "Window Indices"
+      print*, window_indices(:, 1)
+      print*, window_indices(:, 2)
+      print*, "Window Bins"
+      print*, window_indices(:, 2) - window_indices(:, 1) + 1
+    end if
+
     ! Allocate arrays
     allocate (bin_edges(bins + 1))
     allocate (probability_dist(bins))
@@ -149,13 +157,14 @@ contains
       write (6, '(24("-"),x,"Commencing Simulation!",x,24("-"),/)')
       print *, "Number of atoms", setup%n_atoms
     end if
+    call comms_wait()
 
     !---------!
     ! Burn in !
     !---------!
     call tmmc_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
+    print*, "Rank: ", my_rank, "Burn-in complete"
     call comms_wait()
-
     if (my_rank == 0) then
       write (*, *)
       write (6, '(27("-"),x,"Burn-in complete",x,27("-"),/)')
@@ -460,7 +469,7 @@ contains
           e_unswapped = e_swapped
         else if (e_swapped < target_energy .and. delta_e > 0) then
           e_unswapped = e_swapped
-        else if (genrand() .lt. 0.01_real64) then ! to prevent getting stuck in local minimum
+        else if (genrand() .lt. 0.0001_real64) then ! to prevent getting stuck in local minimum
           e_unswapped = e_swapped
         else
           call pair_swap(config, rdm1, rdm2)
@@ -473,7 +482,7 @@ contains
     integer, intent(in) :: num_intervals
     integer, intent(in) :: start, finish
     integer, intent(out) :: intervals(num_intervals, 2)
-    real(real64) :: factor, index, power, b, n, g
+    real(real64) :: factor, index, power, b, n, g, idx, z
     integer :: i
 
     intervals(1,1) = start
@@ -482,14 +491,18 @@ contains
     power = 2.5
     b = finish
     n = num_intervals + 1
-    g = 0.4
+    g = 0.5
+    idx = 3
+    z = 2
 
     !factor = (b-1.0_real64)/((n+1.0_real64)**power-1.0_real64)
-    factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))
+    !factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))
+    factor = (idx - b)/(EXP(g*z)-EXP(g*n))
 
     do i = 2, num_intervals
       !index = FLOOR(factor*(i**power-1)+1)
-      index = FLOOR(factor*EXP(g*i)+1-factor*EXP(g))
+      !index = FLOOR(factor*EXP(g*i)+1-factor*EXP(g))
+      index = FLOOR(factor*EXP(g*i)+idx-factor*EXP(g*z))
       intervals(i-1,2) = INT(index)
       intervals(i,1) = INT(index + 1)
     end do
