@@ -36,8 +36,11 @@ contains
     integer :: bins, resets
     real(real64) :: bin_width, energy_to_ry, wl_f, wl_f_prev, tolerance, flatness_tolerance
     real(real64) :: target_energy, min_val, flatness, acceptance, bins_buffer, bins_min
-    real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:)
+    real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:), bin_energy(:)
     logical :: first_reset, hist_reset, first_hist_reset
+
+    ! Name of file for writing radial densities at the end
+    character(len=37) :: radial_file
 
     ! window variables
     integer, allocatable :: window_indices(:, :)
@@ -50,8 +53,23 @@ contains
     real(real64) :: scale_factor, scale_count, wl_logdos_min, bin_overlap, beta_diff, beta_original, beta_merge
     real(real64), allocatable :: mpi_bin_edges(:), mpi_wl_hist(:), wl_logdos_buffer(:), wl_logdos_write(:)
 
+    ! radial density across energy
+    real(real64), allocatable :: rho_of_E(:,:,:,:), rho_of_E_buffer(:,:,:,:)
+    integer, allocatable :: radial_record(:, :)
+
     ! Minimum value in array to be considered
     min_val = wl_setup%tolerance*1e-1_real64
+
+    ! Radial densities as a function of energy
+    allocate(rho_of_E(setup%n_species, setup%n_species, setup%wc_range, wl_setup%bins))
+    if (my_rank == 0) then
+      allocate(rho_of_E_buffer(setup%n_species, setup%n_species, setup%wc_range, wl_setup%bins))
+    end if
+    rho_of_E = 0.0_real64
+    radial_record = wl_setup%radial_samples
+
+    ! Path to radial file and name of radial file
+    radial_file = "radial_densities/rho_of_E.nc"
 
     ! Get number of MPI processes
     call MPI_COMM_SIZE(MPI_COMM_WORLD, num_proc, ierror)
@@ -71,7 +89,7 @@ contains
     end if
 
     ! Get start and end indices for energy windows
-    allocate (window_indices(num_windows, 2))
+    allocate(window_indices(num_windows, 2))
     allocate(intervals(num_windows, 2))
     
     call divide_range(1, bins, num_windows, intervals)
@@ -100,18 +118,20 @@ contains
       print*, window_indices(:, 2) - window_indices(:, 1) + 1
     end if
 
-    ! Allocate arrays
-    allocate (bin_edges(bins + 1))
-    allocate (wl_hist(bins))
-    allocate (wl_logdos(bins))
-    allocate (wl_logdos_buffer(bins))
+    ! allocate arrays
+    allocate(radial_record(intervals(mpi_index,2) - intervals(mpi_index,1) + 1, 2))
+    allocate(bin_edges(bins + 1))
+    allocate(wl_hist(bins))
+    allocate(wl_logdos(bins))
+    allocate(wl_logdos_buffer(bins))
+    allocate(bin_energy(bins))
 
     ! MPI arrays
-    allocate (mpi_bin_edges(mpi_bins + 1))
-    allocate (mpi_wl_hist(mpi_bins))
+    allocate(mpi_bin_edges(mpi_bins + 1))
+    allocate(mpi_wl_hist(mpi_bins))
 
     if (my_rank == 0) then
-      allocate (wl_logdos_write(bins))
+      allocate(wl_logdos_write(bins))
     end if
 
     !  Set temperature in appropriate units for simulation
@@ -127,6 +147,9 @@ contains
     do i = 1, bins + 1
       bin_edges(i) = wl_setup%energy_min*energy_to_ry + (i - 1)*bin_width
     end do
+    do i = 1, bins
+      bin_energy(i) = wl_setup%energy_min*energy_to_ry + (i - 0.5)*bin_width
+    end do
     do i = mpi_start_idx, mpi_end_idx + 1
       mpi_bin_edges(j) = bin_edges(i)
       j = j + 1
@@ -139,6 +162,7 @@ contains
     wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = wl_setup%wl_f; wl_f_prev = wl_f
     flatness = 0.0_real64; first_reset = .False.; hist_reset = .True.; first_hist_reset = .False.
     mpi_wl_hist = 0.0_real64; wl_logdos_buffer = 0.0_real64
+    radial_record = wl_setup%radial_samples
 
     ! Set up the lattice
     call initial_setup(setup, config)
@@ -176,7 +200,7 @@ contains
         hist_reset = .False.
       end if
       acceptance = run_wl_sweeps(setup, wl_setup, config, temp, bins, bin_edges, mpi_start_idx, mpi_end_idx, &
-                                 mpi_wl_hist, wl_logdos, wl_f)
+                                 mpi_wl_hist, wl_logdos, wl_f, mpi_index, intervals, radial_record, rho_of_E)
 
       flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
       bins_min = count(mpi_wl_hist > min_val)/REAL(mpi_bins)
@@ -190,10 +214,12 @@ contains
         if (minval(mpi_wl_hist) > 10.0_real64) then
           first_reset = .True.
           mpi_wl_hist = 0.0_real64
+          radial_record = 0
         end if
       end if
-      !Check if we're flatness_tolerance% flat
-      if (flatness > flatness_tolerance .and. minval(mpi_wl_hist) > 10) then
+      !Check if we're flatness_tolerance% flat and radial distributions have been sampled
+      if (flatness > flatness_tolerance .and. minval(mpi_wl_hist) > 10 .and. &
+          minval(radial_record(:,2)) == wl_setup%radial_samples) then
         !Reset the histogram
         mpi_wl_hist = 0.0_real64
         hist_reset = .True.
@@ -276,8 +302,20 @@ contains
           end if
         end do
 
+        ! radial density
+        call MPI_REDUCE(rho_of_E, rho_of_E_buffer, setup%n_species*setup%n_species*setup%wc_range*wl_setup%bins, &
+                        MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
+
+        if (my_rank == 0) then
+          rho_of_E_buffer = rho_of_E_buffer/wl_setup%radial_samples
+        end if
+
+        radial_record = 0
+        rho_of_E = 0.0_real64
+
         if (my_rank == 0) then
           ! Write output files
+          call ncdf_radial_density_writer_across_energy(radial_file, rho_of_E_buffer, shells, bin_energy, setup)
           call ncdf_writer_1d("wl_dos_bins.dat", ierr, bin_edges)
           call ncdf_writer_1d("wl_dos.dat", ierr, wl_logdos_write)
           call ncdf_writer_1d("wl_hist.dat", ierr, wl_hist)
@@ -303,18 +341,21 @@ contains
   end function bin_index
 
   function run_wl_sweeps(setup, wl_setup, config, temp, bins, bin_edges, &
-                         mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f) result(acceptance)
+                         mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f, &
+                         mpi_index, intervals, radial_record, rho_of_E) result(acceptance)
     integer(int16), dimension(:, :, :, :) :: config
     class(run_params), intent(in) :: setup
     class(wl_params), intent(in) :: wl_setup
-    integer, intent(in) :: bins, mpi_start_idx, mpi_end_idx
+    integer, intent(in) :: bins, mpi_start_idx, mpi_end_idx, mpi_index
+    integer, dimension(:,:), intent(inout) :: radial_record, intervals
+    real(real64), dimension(:,:,:,:), intent(inout) :: rho_of_E
     real(real64), dimension(:), intent(in) :: bin_edges
     real(real64), dimension(:), intent(inout) :: mpi_wl_hist, wl_logdos
     real(real64), intent(in) :: wl_f, temp
 
     integer, dimension(4) :: rdm1, rdm2
     real(real64) :: e_swapped, e_unswapped, delta_e, beta
-    integer :: acceptance, i, ibin, jbin
+    integer :: acceptance, i, ibin, jbin, iradial
     integer(int16) :: site1, site2
 
     ! Set inverse temp
@@ -326,8 +367,6 @@ contains
     acceptance = 0.0_real64
 
     do i = 1, wl_setup%mc_sweeps*setup%n_atoms
-
-      r_densities = radial_densities(setup, config, setup%wc_range, shells)
 
       ! Make one MC trial
       ! Generate random numbers
@@ -350,6 +389,18 @@ contains
 
       ! Only compute energy change if within limits where V is defined and within MPI region
       if (jbin > mpi_start_idx - 1 .and. jbin < mpi_end_idx + 1) then
+
+        ! Calculate radial density and add to appropriate location in array
+        if (ibin > intervals(mpi_index,1) - 1 .and. ibin < intervals(mpi_index,2) + 1) then
+          iradial = ibin - intervals(mpi_index,1) + 1
+          if(i > radial_record(iradial, 1) &
+            .and. radial_record(iradial, 2) < wl_setup%radial_samples ) then
+            radial_record(iradial, 1) = radial_record(iradial, 1) + INT(setup%n_atoms*0.05)
+            radial_record(iradial, 2) = radial_record(iradial, 2) + 1
+            rho_of_E(:,:,:,ibin) = rho_of_E(:,:,:,ibin) + radial_densities(setup, config, setup%wc_range, shells)
+          end if
+        end if
+
         ! Add change in V into diff_energy
         delta_e = e_swapped - e_unswapped
 
