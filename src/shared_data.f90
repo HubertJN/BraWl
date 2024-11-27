@@ -167,6 +167,8 @@ module shared_data
     real :: energy_min
     ! Energy range maximum
     real :: energy_max
+    ! Radial density samples per bin
+    integer :: radial_samples
 
   end type wl_params
 
