@@ -523,7 +523,7 @@ module io
   subroutine read_wl_file(filename, parameters, my_rank)
     integer :: my_rank
     character(len=*), intent(in) :: filename
-    logical, dimension(9) :: check
+    logical, dimension(10) :: check
     type(wl_params) :: parameters
     character(len=100) :: buffer, label
     integer :: line, pos, ios
@@ -613,6 +613,12 @@ module io
             print*, '# Read energy_max = ', parameters%energy_max
           end if
           check(9) = .true.
+        case ('radial_samples')
+          read(buffer, *, iostat=ios) parameters%radial_samples
+          if (my_rank == 0) then
+            print*, '# Read radial_samples = ', parameters%radial_samples
+          end if
+          check(10) = .true.
 
         case default
           if (my_rank == 0) then
