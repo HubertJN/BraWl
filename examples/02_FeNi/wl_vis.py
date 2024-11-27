@@ -4,18 +4,20 @@ import math as m
 import netCDF4 as nc
 np.set_printoptions(suppress=True)
 
-filename = "wl_dos_bins.dat"
+directory = input("Input directory to pull data from: ")
+
+filename = "{}/wl_dos_bins.dat".format(directory)
 bin_edges = nc.Dataset(filename)
 bin_edges = np.array(bin_edges["grid data"][:], dtype=np.float64)
 
-filename = "wl_dos.dat"
+filename = "{}/wl_dos.dat".format(directory)
 wl_logdos = nc.Dataset(filename)
 wl_logdos = np.array(wl_logdos["grid data"][:], dtype=np.float64)
 
 wl_logdos = np.log(np.exp(wl_logdos)/np.sum(np.exp(wl_logdos)))
 print(wl_logdos)
 
-filename = "wl_hist.dat"
+filename = "{}/wl_hist.dat".format(directory)
 wl_hist = nc.Dataset(filename)
 wl_hist = np.array(wl_hist["grid data"][:], dtype=np.float64)
 
