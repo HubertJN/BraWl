@@ -34,6 +34,8 @@ module energy_spectrum
     ! Temperature and temperature steps
     real(real64) :: acceptance, step, energy_to_ry, min_energy
 
+    energy_to_ry = setup%n_atoms/(eV_to_Ry*1000)
+
     ! Set up the lattice
     call initial_setup(setup, config)
 
