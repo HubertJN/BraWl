@@ -120,6 +120,103 @@ module write_netcdf
 
   end subroutine ncdf_radial_density_writer
 
+    !--------------------------------------------------------------------!
+  ! Routine to write radial densities to file                          !
+  !                                                                    !
+  ! C. D. Woodgate,  Warwick                                      2023 !
+  !--------------------------------------------------------------------!
+  subroutine ncdf_radial_density_writer_across_energy(filename, rho, r, U, setup)
+
+    integer, parameter :: rho_ndims = 4
+
+    type(run_params), intent(in) :: setup
+
+    ! Data to write to file
+    real(real64), dimension(:,:,:,:), allocatable, intent(in) :: rho
+    real(real64), dimension(:), allocatable, intent(in) :: r
+    real(real64), dimension(:), allocatable, intent(in) :: U
+
+    ! Number of dimensions of my grid data
+    integer, dimension(rho_ndims) :: rho_sizes, rho_dim_ids
+    integer :: r_size, r_dim_id, U_size, U_dim_id
+
+    ! Names of my dimensions
+    character(len=1), dimension(rho_ndims) :: rho_dims=(/"i", "j", "r", "U"/)
+    character(len=3) :: r_dims = "r_i"
+    character(len=3) :: U_dims = "U_i"
+
+    ! Filename to which to write
+    character(len=*), intent(in) :: filename
+
+    ! Variables used in writing process
+    integer :: file_id, i
+
+    ! Ids for variables
+    integer :: rho_id, r_id, U_id
+
+    ! Get the sizes of my incoming arrays
+    rho_sizes  = shape(rho)
+    r_size = size(r)
+    U_size = size(U)
+
+    ! Create the file
+    call check(nf90_create(filename, nf90_clobber, file_id))
+
+    ! Add information about global runtime data
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'N_1', setup%n_1))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'N_2', setup%n_2))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'N_3', setup%n_3))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'Number of Species', setup%n_species))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'Number of MC steps', setup%mc_steps))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'Temperature', setup%T))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'Lattice Type', setup%lattice))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'Interaction file', setup%interaction_file))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'Concentrations', setup%species_concentrations))
+    call check(nf90_put_att(file_id, NF90_GLOBAL, &
+                            'Warren-Cowley Range', &
+                            setup%wc_range))
+
+    ! Define the 3D variables and dimensions
+    do i = 1, rho_ndims
+      call check(nf90_def_dim(file_id, rho_dims(i), &
+                              rho_sizes(i), rho_dim_ids(i)))
+    end do 
+
+    call check(nf90_def_var(file_id, "rho data", NF90_DOUBLE, &
+                            rho_dim_ids, rho_id))
+
+    call check(nf90_def_dim(file_id, r_dims, r_size, r_dim_id))
+
+    call check(nf90_def_var(file_id, "r data", NF90_DOUBLE, &
+                            r_dim_id, r_id))
+
+    call check(nf90_def_dim(file_id, U_dims, U_size, U_dim_id))
+
+    call check(nf90_def_var(file_id, "U data", NF90_DOUBLE, &
+                            U_dim_id, U_id))
+
+    ! Finish defining metadata
+    call check(nf90_enddef(file_id))
+
+    ! Dump the variables to file
+    call check(nf90_put_var(file_id, rho_id, rho))
+    call check(nf90_put_var(file_id, r_id, r))
+    call check(nf90_put_var(file_id, U_id, U))
+
+    ! Close the file
+    call check(nf90_close(file_id))
+
+  end subroutine ncdf_radial_density_writer_across_energy
+
   !--------------------------------------------------------------------!
   ! Routine to write order parameters to file                          !
   !                                                                    !
