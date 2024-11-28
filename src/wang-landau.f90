@@ -69,7 +69,7 @@ contains
     radial_record = wl_setup%radial_samples
 
     ! Path to radial file and name of radial file
-    radial_file = "radial_densities/rho_of_E.nc"
+    radial_file = "radial_densities/rho_of_E.dat"
 
     ! Get number of MPI processes
     call MPI_COMM_SIZE(MPI_COMM_WORLD, num_proc, ierror)
@@ -178,7 +178,8 @@ contains
     !---------!
     ! Burn in !
     !---------!
-    call wl_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
+    call wl_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges), &
+                    num_proc, num_walkers, my_rank, mpi_index)
     print*, "Rank: ", my_rank, "Burn-in complete"
     call comms_wait()
     if (my_rank == 0) then
@@ -387,6 +388,10 @@ contains
       ibin = bin_index(e_unswapped, bin_edges, bins)
       jbin = bin_index(e_swapped, bin_edges, bins)
 
+      if (ibin > bins) then
+        print*, "Rank", my_rank, ibin, jbin, setup%full_energy(config)
+      end if
+
       ! Only compute energy change if within limits where V is defined and within MPI region
       if (jbin > mpi_start_idx - 1 .and. jbin < mpi_end_idx + 1) then
 
@@ -422,22 +427,46 @@ contains
 
   end function run_wl_sweeps
 
-  subroutine wl_burn_in(setup, config, target_energy, min_e, max_e)
+  subroutine wl_burn_in(setup, config, target_energy, min_e, max_e, &
+                        num_proc, num_walkers, my_rank, mpi_index)
     integer(int16), dimension(:, :, :, :) :: config
     class(run_params), intent(in) :: setup
     real(real64), intent(in) :: target_energy, min_e, max_e
+    integer, intent(in) :: num_proc, num_walkers, my_rank, mpi_index
 
     integer, dimension(4) :: rdm1, rdm2
     real(real64) :: e_swapped, e_unswapped, delta_e
     integer(int16) :: site1, site2
+    logical :: stop_burn = .False., flag
+    integer :: rank, rank_index, request, ierr, status, con_sum
 
     ! Establish total energy before any moves
     e_unswapped = setup%full_energy(config)
 
+    ! Non-blocking receive setup
+    call MPI_IRECV(stop_burn, 1, MPI_LOGICAL, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, request, ierr)
+
     do while (.True.)
-      if (e_unswapped > min_e .and. e_unswapped < max_e) then
+      call MPI_TEST(request, flag, MPI_STATUS_IGNORE, ierr)
+      if (stop_burn .eqv. .True.) then
+        call MPI_RECV(config, SIZE(config), MPI_SHORT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
+        !print*, my_rank, setup%full_energy(config), min_e, max_e
+        exit
+      else if (e_unswapped > min_e .and. e_unswapped < max_e) then
+        stop_burn = .True.
+        call MPI_CANCEL(request, ierr)
+        call MPI_REQUEST_FREE(request, ierr)
+        do rank=0, num_proc-1
+          rank_index = rank/num_walkers + 1 
+          if (rank /= my_rank .and. rank_index == mpi_index) then
+            !print*, mpi_index, my_rank, "Sending to", rank_index, rank
+            call MPI_SEND(stop_burn, 1, MPI_LOGICAL, rank, 0, MPI_COMM_WORLD, ierr)
+            call MPI_SEND(config, SIZE(config), MPI_SHORT, rank, 0, MPI_COMM_WORLD, ierr)
+          end if
+        end do
         exit
       end if
+
       ! Make one MC trial
       ! Generate random numbers
       rdm1 = setup%rdm_site()
@@ -458,7 +487,7 @@ contains
           e_unswapped = e_swapped
         else if (e_swapped < target_energy .and. delta_e > 0) then
           e_unswapped = e_swapped
-        else if (genrand() .lt. 0.0001_real64) then ! to prevent getting stuck in local minimum
+        else if (genrand() .lt. 0.001_real64) then ! to prevent getting stuck in local minimum (should adjust this later to something more scientific instead of an arbitrary number)
           e_unswapped = e_swapped
         else
           call pair_swap(config, rdm1, rdm2)
