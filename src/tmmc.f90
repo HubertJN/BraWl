@@ -165,6 +165,7 @@ contains
     call tmmc_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges))
     print*, "Rank: ", my_rank, "Burn-in complete"
     call comms_wait()
+
     if (my_rank == 0) then
       write (*, *)
       write (6, '(27("-"),x,"Burn-in complete",x,27("-"),/)')
@@ -217,7 +218,8 @@ contains
     ! Write final output files   !
     !----------------------------!
     call MPI_REDUCE(trans_matrix, trans_matrix_buffer, bins*bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
-    call MPI_REDUCE(bin_probability, bin_probability_buffer, bins, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
+    call MPI_REDUCE(bin_probability*mpi_bins, bin_probability_buffer, bins,&
+                    MPI_DOUBLE_PRECISION, MPI_MAX, 0, MPI_COMM_WORLD, ierror)
     if (my_rank == 0) then
       call bias_from_tm(energy_bias, probability_dist, norm_trans_matrix, trans_matrix_buffer, &
                         bins, bin_edges, bin_width, temp, 0)
