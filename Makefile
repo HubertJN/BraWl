@@ -34,7 +34,7 @@ endif
 # gfortran
 ifeq ($(strip $(compiler)),gfortran)
   FC = mpifort
-#  FFLAGS = -O0 -Wall -Wextra -fcheck=bounds
+#  FFLAGS = -g -O0 -Wall -Wextra -fcheck=bounds
   FFLAGS = -O3 -Wall -Wextra -fimplicit-none
   FFLAGS += -I/usr/local/include -I$(OBJDIR) -J$(OBJDIR)
   LDFLAGS=-lgcc -lopenblas

@@ -2,21 +2,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math as m
 import netCDF4 as nc
+import os
 np.set_printoptions(suppress=True)
 
-filename = "dos_bins.dat"
+subfolders = [ f.name for f in os.scandir(os.getcwd()) if f.is_dir() ]
+print("Available directories:")
+print(subfolders)
+directory = input("Input directory to pull data from: ")
+
+filename = "{}/dos_bins.dat".format(directory)
 bin_edges = nc.Dataset(filename)
 bin_edges = np.array(bin_edges["grid data"][:], dtype=np.float64)
 
-filename = "dos_probability.dat"
+filename = "{}/dos_probability.dat".format(directory)
 statP = nc.Dataset(filename)
 statP = np.array(statP["grid data"][:], dtype=np.float64)
 
-filename = "bin_probability.dat"
+filename = "{}/bin_probability.dat".format(directory)
 visited_bins = nc.Dataset(filename)
 visited_bins = np.array(visited_bins["grid data"][:], dtype=np.float64)
 
-filename = "energy_bias_all.dat"
+filename = "{}/energy_bias_all.dat".format(directory)
 energy_bias = nc.Dataset(filename)
 energy_bias = np.array(energy_bias["grid data"][:], dtype=np.float64)
 
@@ -28,9 +34,9 @@ eV_to_meV = 1000
 J = 0.001
 N = 6
 
-orig_temp = 400
-start_temp = 200
-end_temp = 800
+orig_temp = 2000
+start_temp = 600
+end_temp = 3000
 step_size = (end_temp-start_temp)/(75)
 temperatures = np.arange(start_temp, end_temp, step_size)
 
@@ -44,8 +50,12 @@ for i, edge in enumerate(bin_edges[:-1]):
 bin_width = bin_edges[1] - bin_edges[0]
 
 plt.plot(bin_energies, statP, label="Distribution")
-for i in range(energy_bias.shape[0]):
-    plt.plot(bin_energies, energy_bias[i], label="Reweight: {}".format(i+1))
+plt.plot(bin_energies, energy_bias[0], label="Reweight: First")
+plt.plot(bin_energies, energy_bias[int(len(energy_bias)/2)], label="Reweight: Middle")
+plt.plot(bin_energies, energy_bias[-1], label="Reweight: Last")
+x_positions = np.linspace(bin_energies[0], bin_energies[-1], 16)
+for x in x_positions:
+    plt.vlines(x=x, ymin=0, ymax=np.max(energy_bias), color='r', linestyle='--')
 plt.legend(loc="upper right")
 plt.xlabel("Energy (Rydberg)")
 plt.ylabel("Bias")
@@ -60,24 +70,24 @@ plt.xlabel("Energy (Rydberg)")
 plt.ylabel("Number of visits")
 plt.show()
 
-bins = 128
-bin_width_con = (bin_edges[-1] - bin_edges[0])/(bins)
-bin_edges_con = np.arange(bin_edges[0], bin_edges[-1]+bin_width_con, bin_width_con)
-
-statP_con = np.zeros(len(bin_edges_con)-1)
-
-for i, edge in enumerate(bin_edges[:-1]):
-    bin_energy = edge + 0.5*bin_width
-    j = 0
-    while 1:
-        if bin_energy >= bin_edges_con[j] and bin_energy < bin_edges_con[j+1]:
-            statP_con[j] += statP[i]
-            break
-        else:
-            j += 1
-
-statP = statP_con/sum(statP_con)
-bin_edges = bin_edges_con
+#bins = 128
+#bin_width_con = (bin_edges[-1] - bin_edges[0])/(bins)
+#bin_edges_con = np.arange(bin_edges[0], bin_edges[-1]+bin_width_con, bin_width_con)
+#
+#statP_con = np.zeros(len(bin_edges_con)-1)
+#
+#for i, edge in enumerate(bin_edges[:-1]):
+#    bin_energy = edge + 0.5*bin_width
+#    j = 0
+#    while 1:
+#        if bin_energy >= bin_edges_con[j] and bin_energy < bin_edges_con[j+1]:
+#            statP_con[j] += statP[i]
+#            break
+#        else:
+#            j += 1
+#
+#statP = statP_con/sum(statP_con)
+#bin_edges = bin_edges_con
 print(statP)
 # ------------------------------------------------
 
@@ -130,7 +140,7 @@ for itemp, new_temp in enumerate(temperatures):
         prob[ibin] = statP[ibin]*weight
 
     # Normalise
-    prob = prob/(np.sum(prob*bin_width))
+    prob = prob/np.sum(prob)
 
     # Only plot every 5th histogram to avoid crowding the axes
     if itemp%4 == 0:
@@ -138,7 +148,7 @@ for itemp, new_temp in enumerate(temperatures):
         ax1.bar(bin_edges[:-1], prob, width=bin_width, align='edge', label=strlabel)
     
     # Mean energy
-    mean_energy = np.dot(bin_edges[:-1]+0.5*bin_width, prob)/np.sum(prob)
+    mean_energy = np.dot(bin_edges[:-1]+0.5*bin_width, prob)
     mean_energies[itemp] = mean_energy
 
     # Compute heat capacity using the histogram
@@ -149,7 +159,7 @@ for itemp, new_temp in enumerate(temperatures):
         
     heat_caps[itemp] = np.dot(msq_dev, prob)*bin_width/(kb_ry*new_temp**2)
 
-    entropy = (prob*bin_width)*np.log(prob*bin_width)
+    entropy = prob*np.log(prob)
     entropy[np.isnan(entropy)] = 0
     entropies[itemp] = -np.sum(entropy)
 
