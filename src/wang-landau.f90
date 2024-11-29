@@ -37,7 +37,7 @@ contains
     real(real64) :: bin_width, energy_to_ry, wl_f, wl_f_prev, tolerance, flatness_tolerance
     real(real64) :: target_energy, min_val, flatness, acceptance, bins_buffer, bins_min
     real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:), bin_energy(:)
-    logical :: first_reset, hist_reset, first_hist_reset
+    logical :: first_reset, hist_reset, first_hist_reset, rho_saved
 
     ! Name of file for writing radial densities at the end
     character(len=37) :: radial_file
@@ -52,6 +52,7 @@ contains
     integer, allocatable :: intervals(:,:)
     real(real64) :: scale_factor, scale_count, wl_logdos_min, bin_overlap, beta_diff, beta_original, beta_merge
     real(real64), allocatable :: mpi_bin_edges(:), mpi_wl_hist(:), wl_logdos_buffer(:), wl_logdos_write(:)
+    real(real64), allocatable :: rank_time(:), rank_time_buffer(:,:)
 
     ! radial density across energy
     real(real64), allocatable :: rho_of_E(:,:,:,:), rho_of_E_buffer(:,:,:,:)
@@ -66,7 +67,6 @@ contains
       allocate(rho_of_E_buffer(setup%n_species, setup%n_species, setup%wc_range, wl_setup%bins))
     end if
     rho_of_E = 0.0_real64
-    radial_record = wl_setup%radial_samples
 
     ! Path to radial file and name of radial file
     radial_file = "radial_densities/rho_of_E.dat"
@@ -129,6 +129,8 @@ contains
     ! MPI arrays
     allocate(mpi_bin_edges(mpi_bins + 1))
     allocate(mpi_wl_hist(mpi_bins))
+    allocate(rank_time(num_windows))
+    allocate(rank_time_buffer(num_windows,3))
 
     if (my_rank == 0) then
       allocate(wl_logdos_write(bins))
@@ -161,8 +163,9 @@ contains
     ! Initialize
     wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = wl_setup%wl_f; wl_f_prev = wl_f
     flatness = 0.0_real64; first_reset = .False.; hist_reset = .True.; first_hist_reset = .False.
-    mpi_wl_hist = 0.0_real64; wl_logdos_buffer = 0.0_real64
+    mpi_wl_hist = 0.0_real64; wl_logdos_buffer = 0.0_real64; rank_time = 0.0_real64
     radial_record = wl_setup%radial_samples
+    rho_saved = .False.
 
     ! Set up the lattice
     call initial_setup(setup, config)
@@ -261,14 +264,36 @@ contains
       end if
 
       if (hist_reset .eqv. .True.) then
-        call MPI_REDUCE(end - start, time_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, 0, MPI_COMM_WORLD, ierror)
-        call MPI_REDUCE(end - start, time_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, MPI_COMM_WORLD, ierror)
+        rank_time = 0.0_real64
+        rank_time(mpi_index) = end - start
+        call MPI_ALLREDUCE(end - start, time_max, 1, MPI_DOUBLE_PRECISION, &
+        MPI_MAX, MPI_COMM_WORLD, ierror)
+
+        call MPI_REDUCE(end - start, time_min, 1, MPI_DOUBLE_PRECISION, &
+        MPI_MIN, 0, MPI_COMM_WORLD, ierror)
+
+        call MPI_REDUCE(rank_time/num_walkers, rank_time_buffer(:,1), num_windows, MPI_DOUBLE_PRECISION, &
+                        MPI_SUM, 0, MPI_COMM_WORLD, ierror)
+
+        call MPI_REDUCE(rank_time, rank_time_buffer(:,3), num_windows, MPI_DOUBLE_PRECISION, &
+        MPI_MAX, 0, MPI_COMM_WORLD, ierror)
+
+        rank_time = time_max
+        rank_time(mpi_index) = end - start
+
+        call MPI_REDUCE(rank_time, rank_time_buffer(:,2), num_windows, MPI_DOUBLE_PRECISION, &
+        MPI_MIN, 0, MPI_COMM_WORLD, ierror)
+
         call comms_wait()
 
         if (my_rank == 0) then
           wl_logdos_write = wl_logdos
-          write (6, '(a,i0,a,f6.2,a,f12.10,a,f8.2,a,f8.2,a)', advance='no') "Rank: ", my_rank, " Flatness: ", flatness*100, &
-            "% W-L F: ", wl_f_prev, " Time min:", time_min, "s Time max:", time_max, "s"
+          write (6, '(a,f12.10)', advance='no') "Flatness reached for W-L F of: ", wl_f_prev
+            write (*, *)
+          do i=1, num_windows
+            write (6, '(a,i0,a,f8.2,a,f8.2,a,f8.2,a)') "MPI Window: ", i, " | Avg. time: ", rank_time_buffer(i,1), &
+            "s | Time min: ", rank_time_buffer(i,2), "s Time max: " , rank_time_buffer(i,3), "s"
+          end do
           wl_f_prev = wl_f
           write (*, *)
         end if
@@ -303,20 +328,20 @@ contains
           end if
         end do
 
-        ! radial density
-        call MPI_REDUCE(rho_of_E, rho_of_E_buffer, setup%n_species*setup%n_species*setup%wc_range*wl_setup%bins, &
-                        MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
+        !rho_saved
+        if (rho_saved .eqv. .False.) then
+          rho_saved = .True.
+          call MPI_REDUCE(rho_of_E, rho_of_E_buffer, setup%n_species*setup%n_species*setup%wc_range*wl_setup%bins, &
+                          MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
 
-        if (my_rank == 0) then
-          rho_of_E_buffer = rho_of_E_buffer/wl_setup%radial_samples
+          if (my_rank == 0) then
+            rho_of_E_buffer = rho_of_E_buffer/wl_setup%radial_samples/num_walkers
+            call ncdf_radial_density_writer_across_energy(radial_file, rho_of_E_buffer, shells, bin_energy, setup)
+          end if
         end if
-
-        radial_record = 0
-        rho_of_E = 0.0_real64
 
         if (my_rank == 0) then
           ! Write output files
-          call ncdf_radial_density_writer_across_energy(radial_file, rho_of_E_buffer, shells, bin_energy, setup)
           call ncdf_writer_1d("wl_dos_bins.dat", ierr, bin_edges)
           call ncdf_writer_1d("wl_dos.dat", ierr, wl_logdos_write)
           call ncdf_writer_1d("wl_hist.dat", ierr, wl_hist)
@@ -388,10 +413,6 @@ contains
       ibin = bin_index(e_unswapped, bin_edges, bins)
       jbin = bin_index(e_swapped, bin_edges, bins)
 
-      if (ibin > bins) then
-        print*, "Rank", my_rank, ibin, jbin, setup%full_energy(config)
-      end if
-
       ! Only compute energy change if within limits where V is defined and within MPI region
       if (jbin > mpi_start_idx - 1 .and. jbin < mpi_end_idx + 1) then
 
@@ -448,11 +469,11 @@ contains
 
     do while (.True.)
       call MPI_TEST(request, flag, MPI_STATUS_IGNORE, ierr)
-      if (stop_burn .eqv. .True.) then
+      if (stop_burn .eqv. .True. .and. mpi_index /= num_proc) then
         call MPI_RECV(config, SIZE(config), MPI_SHORT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
         !print*, my_rank, setup%full_energy(config), min_e, max_e
         exit
-      else if (e_unswapped > min_e .and. e_unswapped < max_e) then
+      else if (e_unswapped > min_e .and. e_unswapped < max_e .and. mpi_index /= num_proc) then
         stop_burn = .True.
         call MPI_CANCEL(request, ierr)
         call MPI_REQUEST_FREE(request, ierr)
@@ -464,6 +485,8 @@ contains
             call MPI_SEND(config, SIZE(config), MPI_SHORT, rank, 0, MPI_COMM_WORLD, ierr)
           end if
         end do
+        exit
+      else if (e_unswapped > min_e .and. e_unswapped < max_e .and. mpi_index == num_proc) then
         exit
       end if
 
@@ -509,7 +532,7 @@ contains
     power = 2.5
     b = finish
     n = num_intervals + 1
-    g = 0.5
+    g = 0.4
 
     !factor = (b-1.0_real64)/((n+1.0_real64)**power-1.0_real64)
     factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))
