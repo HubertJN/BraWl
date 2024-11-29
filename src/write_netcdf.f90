@@ -120,10 +120,10 @@ module write_netcdf
 
   end subroutine ncdf_radial_density_writer
 
-    !--------------------------------------------------------------------!
-  ! Routine to write radial densities to file                          !
+  !--------------------------------------------------------------------!
+  ! Routine to write radial densities across energy to file            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! H. J. Naguszewski,  Warwick                                   2023 !
   !--------------------------------------------------------------------!
   subroutine ncdf_radial_density_writer_across_energy(filename, rho, r, U, setup)
 
@@ -1086,7 +1086,7 @@ module write_netcdf
   !--------------------------------------------------------------------!
   ! Subroutine to read and parse bin edge netcdf file                  !
   !                                                                    !
-  ! H. Naguszewski, Warwick                                       2024 !
+  ! H. J. Naguszewski, Warwick                                    2024 !
   !--------------------------------------------------------------------!
   subroutine read_1D_array(filename, varname, array)
     character(len=*), intent(in) :: filename
