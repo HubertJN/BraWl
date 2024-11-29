@@ -19,7 +19,7 @@ module write_xyz
   ! Routine to write xyz file, with option to append configurations in !
   ! a single trajectory file.                                          !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Warwick                                      2024 !
   ! L. B. Partay,    Warwick                                      2024 !
   !--------------------------------------------------------------------!
   subroutine xyz_writer(filename, configuration, setup, trajectory)
@@ -67,15 +67,19 @@ module write_xyz
 
     write(7, *) n_particles
 
-    if (present(trajectory)) then
-      if (trajectory) then
-        write(7,*) 'Lattice="',setup%lattice_parameter*setup%n_1, 0.0, 0.0 , &
-                       &   0.0, setup%lattice_parameter*setup%n_2, 0.0 , &
-                       &   0.0, 0.0, setup%lattice_parameter*setup%n_3,     '"'
-      end if          
-    else           
-      write(7,*) ''
-    end if
+    write(7,*) 'Lattice="',setup%lattice_parameter*setup%n_1, 0.0, 0.0 , &
+                   &   0.0, setup%lattice_parameter*setup%n_2, 0.0 , &
+                   &   0.0, 0.0, setup%lattice_parameter*setup%n_3,     '"'
+
+!    if (present(trajectory)) then
+!      if (trajectory) then
+!        write(7,*) 'Lattice="',setup%lattice_parameter*setup%n_1, 0.0, 0.0 , &
+!                       &   0.0, setup%lattice_parameter*setup%n_2, 0.0 , &
+!                       &   0.0, 0.0, setup%lattice_parameter*setup%n_3,     '"'
+!      end if          
+!    else           
+!      write(7,*) ''
+!    end if
 
     do i=1, grid_sizes(1)
       do j=1, grid_sizes(2)

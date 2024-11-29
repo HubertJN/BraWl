@@ -1,27 +1,29 @@
 # BraWl
 
-A code for performing lattice-based atomistic simulations of alloys with an internal energy given by a Bragg-Williams Hamiltonian. The code will be periodically updated so it is best to check the GitHub repository.
+A code for performing lattice-based atomistic simulations of alloys with an internal energy given by a Bragg-Williams Hamiltonian, implementing both Monte Carlo methods (simulated annealing, transition matrix Monte Carlo, Wang-Landau sampling) and nested sampling. The code will be periodically updated so it is best to check the GitHub repository for the latest version.
 
-Copyright (C) Christopher Woodgate 2019-2023. Released under the GNU Lesser General Public License, version 3.
+Copyright (C) Christopher Woodgate 2019-2024. Released under the GNU Lesser General Public License, version 3.
+
+## Background
+
+The Bragg-Williams Hamiltonian is an on-lattice Ising-like Hamiltonian describing the internal energy of a general substitutional alloy. The configuration of the alloy is specified by the *site occupation numbers*, $\{\xi_{i\alpha}\}$, where $\xi_{i\alpha}=1$ if site $i$ is occupied by an atom of species $\alpha$, and $\xi_{i\alpha}=0$ otherwise. Each lattice site must be constrained to have one (and only one) atom sitting on it, expressed as $\sum_\alpha \xi_{i\alpha}=1$ for all lattice sites $i$. The overall concentration of a chemical species, $c_\alpha$ is given by $c_\alpha = \frac{1}{N} \sum_i \xi_{i\alpha}$, where $N$ is the total number of lattice sites in the system. The energy associated with an atom of species $\alpha$ on site $i$ interacting with an atom of species $\alpha'$ on site $j$, referred to as an *effective pair interaction* is denoted $V_{i\alpha; j\alpha'}$. The Bragg-Williams Hamiltonian is then written
+$$H(\{\xi_{i\alpha}\}) = \frac{1}{2}\sum_{i \alpha; j\alpha'} V_{i\alpha; j\alpha'} \xi_{i \alpha} \xi_{j \alpha'},$$
+where the factor of $\frac{1}{2}$ accounts for double-counting.
 
 ## Citations
 ANY publications/presentations/further work resulting from the use of this software should cite the original publication for which it was developed:
 * C. D. Woodgate, J. B. Staunton, Phys. Rev. B **105**, 115124 (2023)
 DOI: [10.1103/PhysRevB.105.115124](https://doi.org/10.1103/PhysRevB.105.115124)
 
-In addition, if you use the bcc implementation, you should cite the original paper for which that lattice type was implemented:
-* C. D. Woodgate, J. B. Staunton, Phys. Rev. Mater. **7**, 013801 (2023)
-DOI: [10.1103/PhysRevMaterials.7.013801](https://doi.org/10.1103/PhysRevMaterials.7.013801)
-
 # Relevant Publications
-A full list of publications obtained using this code is:
+A list of publications obtained using this code is:
 * C. D. Woodgate, J. B. Staunton, Phys. Rev. B **105**, 115124 (2022). DOI: [https://doi.org/10.1103/PhysRevB.105.115124](https://doi.org/10.1103/PhysRevB.105.115124)
 * C. D. Woodgate, J. B. Staunton, Phys. Rev. Mater. **7**, 013801 (2023). DOI: [https://doi.org/10.1103/PhysRevMaterials.7.013801](https://doi.org/10.1103/PhysRevMaterials.7.013801)
 * C. D. Woodgate, D. Hedlund, L. H. Lewis, J. B. Staunton, Phys. Rev. Mater. **7**, 053801 (2023). DOI: [https://doi.org/10.1103/PhysRevMaterials.7.053801](https://doi.org/10.1103/PhysRevMaterials.7.053801)
 * C. D. Woodgate, J. B. Staunton, J. Appl. Phys. **135**, 135106 (2024). DOI: [https://doi.org/10.1063/5.0200862](https://doi.org/10.1063/5.0200862)
 * L. Shenoy, C. D. Woodgate, J. B. Staunton, A. P. Bartók, C. S. Becquart, C. Domain, J. R. Kermode, [Phys. Rev. Mater. **8**, 033804 (2024)](https://doi.org/10.1103/PhysRevMaterials.8.033804).
-* C. D. Woodgate, L. H. Lewis, J. B. Staunton, arXiv:2401:02809. DOI: [https://doi.org/10.48550/arXiv.2401.02809](https://doi.org/10.48550/arXiv.2401.02809)
-* C. D. Woodgate, G. A. Marchant, L. B. Pártay, J. B. Staunton, [arXiv:2404.13173](https://doi.org/10.48550/arXiv.2404.13173).
+* C. D. Woodgate, G. A. Marchant, L. B. Pártay, J. B. Staunton, [npj Comput. Mater. **10**, 271 (2024)](https://doi.org/10.1038/s41524-024-01445-w).
+* C. D. Woodgate, L. H. Lewis, J. B. Staunton, [npj Comput. Mater. **10**, 272 (2024)](https://doi.org/10.1038/s41524-024-01435-y).
 
 ## Compilation
 At the moment the code is only tested with gfortran and OpenMPI. Put the code in a directory like `~/codes/BraWl`. It is my intention to test other compilers in future: watch this space!

@@ -103,15 +103,15 @@ module display
       write(*, '(a)') title
     end if
 
-    do iz = sizes(3), 1, -1
+    do iz = sizes(4), 1, -1
 
       write(*, '(a, I2)') 'Layer for z = ', iz
 
-      if (borders) write(*, '(a)') repeat('=', sizes(1)+2)
+      if (borders) write(*, '(a)') repeat('=', sizes(2)+2)
 
-      do iy = sizes(2), 1, -1
+      do iy = sizes(3), 1, -1
         if (borders) write(*, '(a)', advance='no') '|'
-        do ix = 1, sizes(1)
+        do ix = 1, sizes(2)
           if (grid(1,ix,iy,iz) .ne. 0) then
             write(c, '(I1)') grid(1,ix, iy, iz)
           else
@@ -122,7 +122,7 @@ module display
         if (borders) write(*, '(a)', advance='no') '|'
         write(*, '(a)') ''
       end do
-      if (borders) write(*, '(a)') repeat('=', sizes(1)+2)
+      if (borders) write(*, '(a)') repeat('=', sizes(2)+2)
     end do
 
   end subroutine display_grid
