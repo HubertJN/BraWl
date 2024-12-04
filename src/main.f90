@@ -15,6 +15,7 @@ program main
   use tmmc
   use wang_landau
   use energy_spectrum
+  use config_output
   use io
   use kinds
   use c_functions
@@ -105,6 +106,11 @@ program main
     ! Energy spectrum algorithm
     call read_es_file("es_input.txt", es_setup, my_rank)
     call es_main(setup, es_setup, my_rank)
+
+  else if (setup%mode == 307) then
+
+    ! Configuration at temperature output
+    call co_main(setup, my_rank)
 
   else
 
