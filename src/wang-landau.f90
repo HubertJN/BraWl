@@ -35,7 +35,7 @@ contains
     ! wl variables and arrays
     integer :: bins, resets
     real(real64) :: bin_width, energy_to_ry, wl_f, wl_f_prev, tolerance, flatness_tolerance
-    real(real64) :: target_energy, min_val, flatness, acceptance, bins_buffer, bins_min
+    real(real64) :: target_energy, min_val, flatness, acceptance, bins_buffer, bins_min, radial_min, radial_min_buffer
     real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:), bin_energy(:)
     logical :: first_reset, hist_reset, first_hist_reset, rho_saved
 
@@ -78,6 +78,7 @@ contains
     bins = wl_setup%bins
     num_windows = wl_setup%num_windows
     num_walkers = num_proc/num_windows
+    wl_setup%radial_samples = wl_setup%radial_samples/num_walkers
     if (MOD(num_proc, num_windows) /= 0) then
       if (my_rank == 0) then
         write (6, '(72("~"))')
@@ -208,9 +209,10 @@ contains
 
       flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
       bins_min = count(mpi_wl_hist > min_val)/REAL(mpi_bins)
+      radial_min = REAL(sum(radial_record(:,2)))/REAL(wl_setup%radial_samples*SIZE(radial_record(:,2)))
 
       if (first_hist_reset .neqv. .True.) then
-        write (6, '(a,i0,a,f6.2,a,f6.2,a)') "Rank: ", my_rank, " | Percentage of bins visited: ", bins_min*100_real64, &
+        write (6, '(a,i0,a,f6.2,a,f6.2,a)') "Rank: ", my_rank, " | Bins visited: ", bins_min*100_real64, &
               "% | Flatness:", flatness*100_real64, "%"
       end if
 
@@ -221,9 +223,8 @@ contains
           radial_record = 0
         end if
       end if
-      !Check if we're flatness_tolerance% flat and radial distributions have been sampled
-      if (flatness > flatness_tolerance .and. minval(mpi_wl_hist) > 10 .and. &
-          minval(radial_record(:,2)) == wl_setup%radial_samples) then
+      !Check if we're flatness_tolerance% flat
+      if (flatness > flatness_tolerance .and. minval(mpi_wl_hist) > 10) then
         !Reset the histogram
         mpi_wl_hist = 0.0_real64
         hist_reset = .True.
@@ -239,28 +240,31 @@ contains
           if (mpi_index == i) then
             if (my_rank /= (i - 1)*num_walkers) then
               call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers, i, MPI_COMM_WORLD, ierror)
+              !print*, my_rank, "send", (i - 1)*num_walkers
             end if
-            call comms_wait()
             if (my_rank == (i - 1)*num_walkers) then
               do j = 1, num_walkers - 1
                 call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers + j, i, MPI_COMM_WORLD, &
                               MPI_STATUS_IGNORE, ierror)
+                !print*, my_rank, "recv", (i - 1)*num_walkers + j
                 wl_logdos = wl_logdos + wl_logdos_buffer
               end do
             end if
-            call comms_wait()
             if (my_rank == (i - 1)*num_walkers) then
               wl_logdos = wl_logdos/num_walkers
               do j = 1, num_walkers - 1
                 call MPI_Send(wl_logdos, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers + j, i, MPI_COMM_WORLD, &
                               ierror)
+                !print*, my_rank, "send", (i - 1)*num_walkers + j
               end do
             else
               call MPI_Recv(wl_logdos_buffer, bins, MPI_DOUBLE_PRECISION, (i - 1)*num_walkers, i, MPI_COMM_WORLD, &
                             MPI_STATUS_IGNORE, ierror)
+              !print*, my_rank, "recv", (i - 1)*num_walkers
             end if
           end if
         end do
+        call comms_wait()
       end if
 
       if (hist_reset .eqv. .True.) then
@@ -284,11 +288,16 @@ contains
         call MPI_REDUCE(rank_time, rank_time_buffer(:,2), num_windows, MPI_DOUBLE_PRECISION, &
         MPI_MIN, 0, MPI_COMM_WORLD, ierror)
 
+        call MPI_REDUCE(radial_min, radial_min_buffer, 1, MPI_DOUBLE_PRECISION, &
+        MPI_SUM, 0, MPI_COMM_WORLD, ierror)
+        radial_min_buffer = radial_min_buffer/num_proc
+
         call comms_wait()
 
         if (my_rank == 0) then
           wl_logdos_write = wl_logdos
-          write (6, '(a,f12.10)', advance='no') "Flatness reached for W-L F of: ", wl_f_prev
+          write (6, '(a,f20.18,a,f8.2,a)', advance='no') "Flatness reached for W-L F of: ", wl_f_prev, &
+                  " | Radial samples: ", radial_min_buffer*100_real64, "%"
             write (*, *)
           do i=1, num_windows
             write (6, '(a,i0,a,f8.2,a,f8.2,a,f8.2,a)') "MPI Window: ", i, " | Avg. time: ", rank_time_buffer(i,1), &
@@ -329,12 +338,13 @@ contains
         end do
 
         !rho_saved
-        if (rho_saved .eqv. .False.) then
+        if (rho_saved .eqv. .False. .and. INT(radial_min) == 100) then
+          
           rho_saved = .True.
           call MPI_REDUCE(rho_of_E, rho_of_E_buffer, setup%n_species*setup%n_species*setup%wc_range*wl_setup%bins, &
                           MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
-
           if (my_rank == 0) then
+            print*, "Radial densities saved"
             rho_of_E_buffer = rho_of_E_buffer/wl_setup%radial_samples/num_walkers
             call ncdf_radial_density_writer_across_energy(radial_file, rho_of_E_buffer, shells, bin_energy, setup)
           end if
@@ -419,7 +429,7 @@ contains
         ! Calculate radial density and add to appropriate location in array
         if (ibin > intervals(mpi_index,1) - 1 .and. ibin < intervals(mpi_index,2) + 1) then
           iradial = ibin - intervals(mpi_index,1) + 1
-          if(i > radial_record(iradial, 1) &
+          if(i > MOD(radial_record(iradial, 1),wl_setup%mc_sweeps*setup%n_atoms) &
             .and. radial_record(iradial, 2) < wl_setup%radial_samples ) then
             radial_record(iradial, 1) = radial_record(iradial, 1) + INT(setup%n_atoms*0.05)
             radial_record(iradial, 2) = radial_record(iradial, 2) + 1
@@ -465,8 +475,9 @@ contains
     e_unswapped = setup%full_energy(config)
 
     ! Non-blocking receive setup
-    call MPI_IRECV(stop_burn, 1, MPI_LOGICAL, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, request, ierr)
-
+    if (mpi_index /= num_proc) then
+      call MPI_IRECV(stop_burn, 1, MPI_LOGICAL, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, request, ierr)
+    end if
     do while (.True.)
       call MPI_TEST(request, flag, MPI_STATUS_IGNORE, ierr)
       if (stop_burn .eqv. .True. .and. mpi_index /= num_proc) then
@@ -523,23 +534,27 @@ contains
     integer, intent(in) :: num_intervals
     integer, intent(in) :: start, finish
     integer, intent(out) :: intervals(num_intervals, 2)
-    real(real64) :: factor, index, power, b, n, g
+    real(real64) :: factor, index, power, b, n, g, idx, z
     integer :: i
 
     intervals(1,1) = start
     intervals(num_intervals,2) = finish
 
-    power = 2.5
+    power = 2
     b = finish
     n = num_intervals + 1
-    g = 0.4
+    g = 0.2
+    idx = 3
+    z = 2
 
-    !factor = (b-1.0_real64)/((n+1.0_real64)**power-1.0_real64)
-    factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))
+    factor = (b-1.0_real64)/((n+1.0_real64)**power-1.0_real64)
+    !factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))
+    !factor = (idx - b)/(EXP(g*z)-EXP(g*n))
 
     do i = 2, num_intervals
-      !index = FLOOR(factor*(i**power-1)+1)
-      index = FLOOR(factor*EXP(g*i)+1-factor*EXP(g))
+      index = FLOOR(factor*(i**power-1)+1)
+      !index = FLOOR(factor*EXP(g*i)+1-factor*EXP(g))
+      !index = FLOOR(factor*EXP(g*i)+idx-factor*EXP(g*z))
       intervals(i-1,2) = INT(index)
       intervals(i,1) = INT(index + 1)
     end do
