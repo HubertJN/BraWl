@@ -49,9 +49,51 @@ module wang_landau
     ! Obtain non-uniform MPI window window_intervals
     call divide_range(wl_setup, window_intervals)
 
+    ! Populate MPI arrays and indlude MPI window overlap
+    call mpi_arrays(wl_setup, my_rank, window_intervals, &
+                    window_indices, mpi_bins, mpi_index)
+
     ! Set up the lattice
     call initial_setup(setup, config)
     call lattice_shells(setup, shells, config)
+
+    ! Burn-in MPI windows
+    call burn_in(...) ! Include radial density saving
+
+    ! Perform initial pre-sampling
+    call pre_sampling(...) ! Include radial density saving
+
+    ! Have one sweep between radial densities
+    ! Program timing such that it excludes radial density calculation
+
+    ! Main Wang-Landau sampling loop
+    do while(condition)
+
+      ! Perform sweeps
+      call sweeps(...)
+
+      ! Calculate metrics from sweep
+      call sweep_metrics(...)
+
+      if (flatness_condition) then
+        ! Average Density of States within MPI windows
+        call dos_average(...)
+
+        ! Combine Density of States across MPI windows
+        call dos_combine(...)
+
+        ! Save data with NetCDF 
+        call save_data(...) ! Include radial density
+
+        ! Adjust sampling parameters 
+        call adjust_paramters(...)
+
+        ! MPI metadata and MPI window optimisation
+        call mpi_metadata(...)
+        call mpi_window_optimise(...)
+      end if
+
+    end do
 
   end subroutine wl_main
 
