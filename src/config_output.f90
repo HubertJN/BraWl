@@ -69,7 +69,7 @@ module config_output
     do i=1, num_temp
       write(6, '(a,f8.2,a)') "Running for temperature: ", temperatures(i), " K"
       beta = 1.0_real64/(temperatures(i)*k_b_in_Ry)
-      do j=1, setup%n_atoms*100000
+      do j=1, setup%n_atoms*200000
         acceptance = setup%mc_step(config, beta)
       end do
       write(xyz_file, '(A12 I4.4 F3.2 A4)') 'grids/config_at_T_', int(temperatures(i)), &
