@@ -418,8 +418,8 @@ module energetics
     integer, intent(in) :: site_i, site_j, site_k
     integer(int16), intent(in) :: species
     integer(int16), allocatable, dimension(:) :: nbrs
-    integer :: i, up, dn, fw, bw, lt, rt, upupup, dndndn, &
-               fwfwfw, bwbwbw, ltltlt, rtrtrt
+    integer :: i, upup, dndn, fwfw, bwbw, ltlt, rtrt, upupupup, &
+               dndndndn, fwfwfwfw, bwbwbwbw, ltltltlt, rtrtrtrt
 
     energy=0.0_real64
 
@@ -449,19 +449,19 @@ module energetics
     nbrs(9)   = config(1,     upup, ltltltlt,   site_k)
     nbrs(10)  = config(1,     dndn, ltltltlt,   site_k)
     nbrs(11)  = config(1, upupupup,     ltlt,   site_k)
-    nbrs(12)  = config(1, dndndndn,     lrlt,   site_k)
+    nbrs(12)  = config(1, dndndndn,     ltlt,   site_k)
     nbrs(13)  = config(1, upupupup,     rtrt,   site_k)
     nbrs(14)  = config(1, dndndndn,     rtrt,   site_k)
     nbrs(15)  = config(1,   site_i, ltltltlt,   site_k)
     nbrs(16)  = config(1, dndndndn,   site_j,   site_k)
-    nbrs(17)  = config(1, upupupup,   site_j,     bwbw)
-    nbrs(18)  = config(1,   site_i, rtrtrtrt,     bwbw)
-    nbrs(19)  = config(1,   upupup,       lt,     bwbw)
-    nbrs(20)  = config(1,   dndndn,       lt,     bwbw)
-    nbrs(21)  = config(1,   site_i,       rt, bwbwbwbw)
-    nbrs(22)  = config(1,     upup,       rt, bwbwbwbw)
-    nbrs(23)  = config(1,     dndn,   rtrtrt, bwbwbwbw)
-    nbrs(24)  = config(1,   site_i,   rtrtrt, bwbwbwbw)
+    nbrs(17)  = config(1,   site_i, ltltltlt,     bwbw)
+    nbrs(18)  = config(1, dndndndn,   site_j,     bwbw)
+    nbrs(19)  = config(1, upupupup,   site_j,     bwbw)
+    nbrs(20)  = config(1,   site_i, rtrtrtrt,     bwbw)
+    nbrs(21)  = config(1,   site_i,     ltlt, bwbwbwbw)
+    nbrs(22)  = config(1,     upup,   site_j, bwbwbwbw)
+    nbrs(23)  = config(1,     dndn,   site_j, bwbwbwbw)
+    nbrs(24)  = config(1,   site_i,     rtrt, bwbwbwbw)
 
     ! Sum them
     do i=1, 24
@@ -488,8 +488,8 @@ module energetics
     integer, intent(in) :: site_i, site_j, site_k
     integer(int16), intent(in) :: species
     integer(int16), allocatable, dimension(:) :: nbrs
-    integer :: i, up, dn, fw, bw, lt, rt, upupup, dndndn, &
-               fwfwfw, bwbwbw, ltltlt, rtrtrt
+    integer :: i, upup, dndn, fwfw, bwbw, ltlt, rtrt, upupupup, &
+               dndndndn, fwfwfwfw, bwbwbwbw, ltltltlt, rtrtrtrt
 
     energy=0.0_real64
 
@@ -515,7 +515,7 @@ module energetics
     nbrs(5)   = config(1,     upup, ltltltlt,     fwfw)
     nbrs(6)   = config(1,     dndn, ltltltlt,     fwfw)
     nbrs(7)   = config(1, upupupup,     ltlt,     fwfw)
-    nbrs(8)   = config(1, upupdndn,     ltlt,     fwfw)
+    nbrs(8)   = config(1, dndndndn,     ltlt,     fwfw)
     nbrs(9)   = config(1, upupupup,     rtrt,     fwfw)
     nbrs(10)  = config(1, dndndndn,     rtrt,     fwfw)
     nbrs(11)  = config(1,     upup, rtrtrtrt,     fwfw)
@@ -523,7 +523,7 @@ module energetics
     nbrs(13)  = config(1,     upup, ltltltlt,     bwbw)
     nbrs(14)  = config(1,     dndn, ltltltlt,     bwbw)
     nbrs(15)  = config(1, upupupup,     ltlt,     bwbw)
-    nbrs(16)  = config(1, upupdndn,     ltlt,     bwbw)
+    nbrs(16)  = config(1, dndndndn,     ltlt,     bwbw)
     nbrs(17)  = config(1, upupupup,     rtrt,     bwbw)
     nbrs(18)  = config(1, dndndndn,     rtrt,     bwbw)
     nbrs(19)  = config(1,     upup, rtrtrtrt,     bwbw)
