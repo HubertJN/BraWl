@@ -543,6 +543,91 @@ module energetics
   end function bcc_shell9_energy
 
   !--------------------------------------------------------------------!
+  ! Function to compute the contribution from the 10th coordination    !
+  ! shell to the energy for the BCC lattice                            !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
+  function bcc_shell10_energy(setup, site_i, site_j, site_k, &
+                             config, species)     &
+           result(energy)
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
+    real(real64) :: energy
+    class(run_params), intent(in) :: setup
+    integer, intent(in) :: site_i, site_j, site_k
+    integer(int16), intent(in) :: species
+    integer(int16), allocatable, dimension(:) :: nbrs
+    integer :: i, up, dn, fw, bw, lt, rt, upupup, dndndn, fwfwfw, &
+               bwbwbw, ltltlt, rtrtrt, upupupupup, dndndndndn,    &
+               fwfwfwfwfw, bwbwbwbwbw, ltltltltlt, rtrtrtrtrt
+
+    energy=0.0_real64
+
+    up = modulo(  site_i, 2*setup%n_1) + 1
+    dn = modulo(site_i-2, 2*setup%n_1) + 1
+    lt = modulo(  site_j, 2*setup%n_2) + 1
+    rt = modulo(site_j-2, 2*setup%n_2) + 1
+    fw = modulo(site_k, 2*setup%n_3) + 1
+    bw = modulo(site_k-2, 2*setup%n_3) + 1
+    upupup = modulo(site_i+2, 2*setup%n_1) + 1
+    dndndn = modulo(site_i-4, 2*setup%n_1) + 1
+    ltltlt = modulo(site_j+2, 2*setup%n_2) + 1
+    rtrtrt = modulo(site_j-4, 2*setup%n_2) + 1
+    fwfwfw = modulo(site_k+2, 2*setup%n_3) + 1
+    bwbwbw = modulo(site_k-4, 2*setup%n_3) + 1
+    upupupupup = modulo(site_i+4, 2*setup%n_1) + 1
+    dndndndndn = modulo(site_i-6, 2*setup%n_1) + 1
+    ltltltltlt = modulo(site_j+4, 2*setup%n_2) + 1
+    rtrtrtrtrt = modulo(site_j-6, 2*setup%n_2) + 1
+    fwfwfwfwfw = modulo(site_k+4, 2*setup%n_3) + 1
+    bwbwbwbwbw = modulo(site_k-6, 2*setup%n_3) + 1
+
+    allocate(nbrs(32))
+
+    nbrs(1)   = config(1,         up,         lt, fwfwfwfwfw)
+    nbrs(2)   = config(1,         dn,         lt, fwfwfwfwfw)
+    nbrs(3)   = config(1,         up,         rt, fwfwfwfwfw)
+    nbrs(4)   = config(1,         dn,         rt, fwfwfwfwfw)
+    nbrs(5)   = config(1,     upupup,     ltltlt,     fwfwfw)
+    nbrs(6)   = config(1,     dndndn,     ltltlt,     fwfwfw)
+    nbrs(7)   = config(1,     upupup,     rtrtrt,     fwfwfw)
+    nbrs(8)   = config(1,     dndndn,     rtrtrt,     fwfwfw)
+    nbrs(9)   = config(1,         up, rtrtrtrtrt,         fw)
+    nbrs(10)  = config(1,         dn, rtrtrtrtrt,         fw)
+    nbrs(11)  = config(1, upupupupup,         rt,         fw)
+    nbrs(12)  = config(1, dndndndndn,         rt,         fw)
+    nbrs(13)  = config(1, upupupupup,         lt,         fw)
+    nbrs(14)  = config(1, dndndndndn,         lt,         fw)
+    nbrs(15)  = config(1,         up, rtrtrtrtrt,         fw)
+    nbrs(16)  = config(1,         dn, rtrtrtrtrt,         fw)
+    nbrs(17)  = config(1,         up, rtrtrtrtrt,         bw)
+    nbrs(18)  = config(1,         dn, rtrtrtrtrt,         bw)
+    nbrs(19)  = config(1, upupupupup,         rt,         bw)
+    nbrs(20)  = config(1, dndndndndn,         rt,         bw)
+    nbrs(21)  = config(1, upupupupup,         lt,         bw)
+    nbrs(22)  = config(1, dndndndndn,         lt,         bw)
+    nbrs(23)  = config(1,         up, rtrtrtrtrt,         bw)
+    nbrs(24)  = config(1,         dn, rtrtrtrtrt,         bw)
+    nbrs(25)  = config(1,     upupup,     ltltlt,     bwbwbw)
+    nbrs(26)  = config(1,     dndndn,     ltltlt,     bwbwbw)
+    nbrs(27)  = config(1,     upupup,     rtrtrt,     bwbwbw)
+    nbrs(28)  = config(1,     dndndn,     rtrtrt,     bwbwbw)
+    nbrs(29)  = config(1,         up,         lt, bwbwbwbwbw)
+    nbrs(30)  = config(1,         dn,         lt, bwbwbwbwbw)
+    nbrs(31)  = config(1,         up,         rt, bwbwbwbwbw)
+    nbrs(32)  = config(1,         dn,         rt, bwbwbwbwbw)
+
+    ! Sum them
+    do i=1, 32
+      energy = energy + V_ex(species, nbrs(i),10)
+    end do
+
+    deallocate(nbrs)
+
+  end function bcc_shell10_energy
+
+  !--------------------------------------------------------------------!
   ! Function to compute the energy for an interaction up to the 1st    !
   ! coordination shell on the BCC lattice.                             !
   !                                                                    !
