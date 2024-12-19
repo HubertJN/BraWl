@@ -126,22 +126,20 @@ module shared_data
   ! H. Naguszewski,  Warwick                                      2024 !
   !--------------------------------------------------------------------!
   type tmmc_params
-    ! Burn in if doing simulated annealing?
-    logical :: burn_in
-    ! Number of burn-in sweeps (each sweep is n_atoms mc steps)
-    integer :: burn_in_sweeps
     ! Number of sweeps (each sweep is n_atoms mc steps)
     integer :: mc_sweeps
     ! Number of bins across energy range
     integer :: bins
+    ! Number of energy windows
+    integer :: num_windows
+    ! Number of bins in the overlap region
+    real :: bin_overlap
     ! Number of bias weight updates
     integer :: weight_update
     ! Energy range minimum
     real :: energy_min
     ! Energy range maximum
     real :: energy_max
-    ! Number of bins in the overlap region
-    integer :: bin_overlap
   end type tmmc_params
 
   !--------------------------------------------------------------------!
@@ -151,10 +149,6 @@ module shared_data
   ! H. Naguszewski,  Warwick                                      2024 !
   !--------------------------------------------------------------------!
   type wl_params
-    ! Burn in if doing simulated annealing?
-    logical :: burn_in
-    ! Number of burn-in sweeps (each sweep is n_atoms mc steps)
-    integer :: burn_in_sweeps
     ! Number of  sweeps (each sweep is n_atoms mc steps)
     integer :: mc_sweeps
     ! Number of bins across energy range
@@ -162,7 +156,7 @@ module shared_data
     ! Number of energy windows
     integer :: num_windows
     ! Number of bins in the overlap region
-    integer :: bin_overlap
+    real :: bin_overlap
     ! Tolerance for wang landau
     real :: tolerance
     ! Flatness for wang landau histogram
@@ -173,6 +167,8 @@ module shared_data
     real :: energy_min
     ! Energy range maximum
     real :: energy_max
+    ! Radial density samples per bin
+    integer :: radial_samples
 
   end type wl_params
 
@@ -185,8 +181,6 @@ module shared_data
   type es_params
     ! Number of mc sweeps (each sweep is n_atoms mc steps)
     integer :: mc_sweeps
-    ! Number of unique energies to be recorded
-    integer :: unique_energy_count
   end type es_params
 
   !--------------------------------------------------------------------!
