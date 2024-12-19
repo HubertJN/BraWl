@@ -2,6 +2,7 @@ mode=301
 n_1=2
 n_2=2
 n_3=2
+n_basis=1
 burn_in= .true.
 burn_in_steps=32
 n_mc_steps=32000
