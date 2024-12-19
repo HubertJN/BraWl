@@ -3,7 +3,7 @@
 !                                                                      !
 ! Module implementing the Bragg-Williams Hamiltonian.                  !
 !                                                                      !
-! C. D. Woodgate,  Warwick                                        2023 !
+! C. D. Woodgate,  Bristol                                        2024 !
 !----------------------------------------------------------------------!
 module energetics
 
@@ -19,7 +19,7 @@ module energetics
   !--------------------------------------------------------------------!
   ! Function to compute the total energy of the simulation             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function total_energy(setup,config) result(energy)
     !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
@@ -50,7 +50,7 @@ module energetics
   ! Function to compute the contribution from the 1st coordination     !
   ! shell to the energy for the BCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_shell1_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -93,7 +93,7 @@ module energetics
   ! Function to compute the contribution from the 2nd coordination     !
   ! shell to the energy for the BCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_shell2_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -134,7 +134,7 @@ module energetics
   ! Function to compute the contribution from the 3rd coordination     !
   ! shell to the energy for the BCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_shell3_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -181,7 +181,7 @@ module energetics
   ! Function to compute the contribution from the 4th coordination     !
   ! shell to the energy for the BCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_shell4_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -250,7 +250,7 @@ module energetics
   ! Function to compute the contribution from the 5th coordination     !
   ! shell to the energy for the BCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_shell5_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -294,7 +294,7 @@ module energetics
   ! Function to compute the contribution from the 6th coordination     !
   ! shell to the energy for the BCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_shell6_energy(setup, site_i, site_j, site_k, &
                              config,  species)     &
@@ -336,7 +336,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 1st    !
   ! coordination shell on the BCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_energy_1shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -357,7 +357,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 2nd    !
   ! coordination shell on the BCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_energy_2shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -379,7 +379,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 3rd    !
   ! coordination shell on the BCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_energy_3shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -402,7 +402,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 4th    !
   ! coordination shell on the BCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_energy_4shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -426,7 +426,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 5th    !
   ! coordination shell on the BCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_energy_5shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -451,7 +451,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 6th    !
   ! coordination shell on the BCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function bcc_energy_6shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -477,7 +477,7 @@ module energetics
   ! Function to compute the contribution from the 1st coordination     !
   ! shell to the energy for the FCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_shell1_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -524,7 +524,7 @@ module energetics
   ! Function to compute the contribution from the 2nd coordination     !
   ! shell to the energy for the FCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_shell2_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -564,7 +564,7 @@ module energetics
   ! Function to compute the contribution from the 3rd coordination     !
   ! shell to the energy for the FCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_shell3_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -630,7 +630,7 @@ module energetics
   ! Function to compute the contribution from the 4th coordination     !
   ! shell to the energy for the FCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_shell4_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -677,7 +677,7 @@ module energetics
   ! Function to compute the contribution from the 5th coordination     !
   ! shell to the energy for the FCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_shell5_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -743,7 +743,7 @@ module energetics
   ! Function to compute the contribution from the 6th coordination     !
   ! shell to the energy for the FCC lattice                            !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_shell6_energy(setup, site_i, site_j, site_k, &
                              config, species)     &
@@ -786,7 +786,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 1st    !
   ! coordination shell on the FCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_energy_1shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -807,7 +807,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 2nd    !
   ! coordination shell on the FCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_energy_2shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -829,7 +829,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 3rd    !
   ! coordination shell on the FCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_energy_3shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -852,7 +852,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 4th    !
   ! coordination shell on the FCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_energy_4shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -876,7 +876,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 5th    !
   ! coordination shell on the FCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_energy_5shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -901,7 +901,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 6th    !
   ! coordination shell on the FCC lattice.                             !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function fcc_energy_6shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -927,7 +927,7 @@ module energetics
   ! Function to compute the contribution from the 1st coordination     !
   ! shell to the energy for the simple cubic lattice                   !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function simple_cubic_1shell_energy(setup, site_i, site_j, site_k, config, species) &
            result(energy)
@@ -972,7 +972,7 @@ module energetics
   ! Function to compute the energy for an interaction up to the 1st    !
   ! coordination shell on the simple cubic lattice.                    !
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function simple_cubic_energy_1shells(setup, config, site_i, site_j, site_k) &
            result(energy)
@@ -992,7 +992,7 @@ module energetics
   !--------------------------------------------------------------------!
   ! Function to compute the energetic cost of swapping a pair of atoms ! 
   !                                                                    !
-  ! C. D. Woodgate,  Warwick                                      2023 !
+  ! C. D. Woodgate,  Bristol                                      2024 !
   !--------------------------------------------------------------------!
   function pair_energy(setup, config, idx1, idx2)&
        result(energy)
