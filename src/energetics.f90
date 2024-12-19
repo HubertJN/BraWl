@@ -765,8 +765,122 @@ module energetics
            + bcc_shell4_energy(setup, site_i, site_j, site_k, config, species) &
            + bcc_shell5_energy(setup, site_i, site_j, site_k, config, species) &
            + bcc_shell6_energy(setup, site_i, site_j, site_k, config, species)
-    
+
   end function bcc_energy_6shells
+
+  !--------------------------------------------------------------------!
+  ! Function to compute the energy for an interaction up to the 7th    !
+  ! coordination shell on the BCC lattice.                             !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
+  function bcc_energy_7shells(setup, config, site_i, site_j, site_k) &
+           result(energy)
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
+    real(real64) :: energy
+    class(run_params), intent(in) :: setup
+    integer, intent(in) :: site_i, site_j, site_k
+    integer(int16) :: species
+
+    species = config(1,site_i, site_j, site_k)
+
+    energy = bcc_shell1_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell2_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell3_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell4_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell5_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell6_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell7_energy(setup, site_i, site_j, site_k, config, species)
+
+  end function bcc_energy_7shells
+
+  !--------------------------------------------------------------------!
+  ! Function to compute the energy for an interaction up to the 8th    !
+  ! coordination shell on the BCC lattice.                             !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
+  function bcc_energy_8shells(setup, config, site_i, site_j, site_k) &
+           result(energy)
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
+    real(real64) :: energy
+    class(run_params), intent(in) :: setup
+    integer, intent(in) :: site_i, site_j, site_k
+    integer(int16) :: species
+
+    species = config(1,site_i, site_j, site_k)
+
+    energy = bcc_shell1_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell2_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell3_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell4_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell5_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell6_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell7_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell8_energy(setup, site_i, site_j, site_k, config, species)
+
+  end function bcc_energy_8shells
+
+  !--------------------------------------------------------------------!
+  ! Function to compute the energy for an interaction up to the 9th    !
+  ! coordination shell on the BCC lattice.                             !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
+  function bcc_energy_9shells(setup, config, site_i, site_j, site_k) &
+           result(energy)
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
+    real(real64) :: energy
+    class(run_params), intent(in) :: setup
+    integer, intent(in) :: site_i, site_j, site_k
+    integer(int16) :: species
+
+    species = config(1,site_i, site_j, site_k)
+
+    energy = bcc_shell1_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell2_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell3_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell4_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell5_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell6_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell7_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell8_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell9_energy(setup, site_i, site_j, site_k, config, species)
+
+  end function bcc_energy_9shells
+
+  !--------------------------------------------------------------------!
+  ! Function to compute the energy for an interaction up to the 10th   !
+  ! coordination shell on the BCC lattice.                             !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
+  function bcc_energy_10shells(setup, config, site_i, site_j, site_k) &
+           result(energy)
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
+    real(real64) :: energy
+    class(run_params), intent(in) :: setup
+    integer, intent(in) :: site_i, site_j, site_k
+    integer(int16) :: species
+
+    species = config(1,site_i, site_j, site_k)
+
+    energy = bcc_shell1_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell2_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell3_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell4_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell5_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell6_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell7_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell8_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell9_energy(setup, site_i, site_j, site_k, config, species) &
+           + bcc_shell10_energy(setup, site_i, site_j, site_k, config, species)
+
+  end function bcc_energy_10shells
 
   !--------------------------------------------------------------------!
   ! Function to compute the contribution from the 1st coordination     !
