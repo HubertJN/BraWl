@@ -403,7 +403,7 @@ module energetics
   end function bcc_shell7_energy
 
   !--------------------------------------------------------------------!
-  ! Function to compute the contribution from the 7th coordination     !
+  ! Function to compute the contribution from the 8th coordination     !
   ! shell to the energy for the BCC lattice                            !
   !                                                                    !
   ! C. D. Woodgate,  Bristol                                      2024 !
@@ -471,6 +471,76 @@ module energetics
     deallocate(nbrs)
 
   end function bcc_shell8_energy
+
+  !--------------------------------------------------------------------!
+  ! Function to compute the contribution from the 9th coordination     !
+  ! shell to the energy for the BCC lattice                            !
+  !                                                                    !
+  ! C. D. Woodgate,  Bristol                                      2024 !
+  !--------------------------------------------------------------------!
+  function bcc_shell9_energy(setup, site_i, site_j, site_k, &
+                             config, species)     &
+           result(energy)
+    !integer(int16), allocatable, dimension(:,:,:,:), intent(in) :: config
+    integer(int16), dimension(:,:,:,:), intent(in) :: config
+    real(real64) :: energy
+    class(run_params), intent(in) :: setup
+    integer, intent(in) :: site_i, site_j, site_k
+    integer(int16), intent(in) :: species
+    integer(int16), allocatable, dimension(:) :: nbrs
+    integer :: i, up, dn, fw, bw, lt, rt, upupup, dndndn, &
+               fwfwfw, bwbwbw, ltltlt, rtrtrt
+
+    energy=0.0_real64
+
+    upup = modulo(site_i+1, 2*setup%n_1) + 1
+    dndn = modulo(site_i-3, 2*setup%n_1) + 1
+    ltlt = modulo(site_j+1, 2*setup%n_2) + 1
+    rtrt = modulo(site_j-3, 2*setup%n_2) + 1
+    fwfw = modulo(site_k+1, 2*setup%n_3) + 1
+    bwbw = modulo(site_k-3, 2*setup%n_3) + 1
+    upupupup = modulo(site_i+3, 2*setup%n_1) + 1
+    dndndndn = modulo(site_i-5, 2*setup%n_1) + 1
+    ltltltlt = modulo(site_j+3, 2*setup%n_2) + 1
+    rtrtrtrt = modulo(site_j-5, 2*setup%n_2) + 1
+    fwfwfwfw = modulo(site_k+3, 2*setup%n_3) + 1
+    bwbwbwbw = modulo(site_k-5, 2*setup%n_3) + 1
+
+    allocate(nbrs(24))
+
+    nbrs(1)   = config(1,     upup,     ltlt, fwfwfwfw)
+    nbrs(2)   = config(1,     dndn,     ltlt, fwfwfwfw)
+    nbrs(3)   = config(1,     upup,     rtrt, fwfwfwfw)
+    nbrs(4)   = config(1,     dndn,     rtrt, fwfwfwfw)
+    nbrs(5)   = config(1,     upup, ltltltlt,     fwfw)
+    nbrs(6)   = config(1,     dndn, ltltltlt,     fwfw)
+    nbrs(7)   = config(1, upupupup,     ltlt,     fwfw)
+    nbrs(8)   = config(1, upupdndn,     ltlt,     fwfw)
+    nbrs(9)   = config(1, upupupup,     rtrt,     fwfw)
+    nbrs(10)  = config(1, dndndndn,     rtrt,     fwfw)
+    nbrs(11)  = config(1,     upup, rtrtrtrt,     fwfw)
+    nbrs(12)  = config(1,     dndn, rtrtrtrt,     fwfw)
+    nbrs(13)  = config(1,     upup, ltltltlt,     bwbw)
+    nbrs(14)  = config(1,     dndn, ltltltlt,     bwbw)
+    nbrs(15)  = config(1, upupupup,     ltlt,     bwbw)
+    nbrs(16)  = config(1, upupdndn,     ltlt,     bwbw)
+    nbrs(17)  = config(1, upupupup,     rtrt,     bwbw)
+    nbrs(18)  = config(1, dndndndn,     rtrt,     bwbw)
+    nbrs(19)  = config(1,     upup, rtrtrtrt,     bwbw)
+    nbrs(20)  = config(1,     dndn, rtrtrtrt,     bwbw)
+    nbrs(21)  = config(1,     upup,     ltlt, bwbwbwbw)
+    nbrs(22)  = config(1,     dndn,     ltlt, bwbwbwbw)
+    nbrs(23)  = config(1,     upup,     rtrt, bwbwbwbw)
+    nbrs(24)  = config(1,     dndn,     rtrt, bwbwbwbw)
+
+    ! Sum them
+    do i=1, 24
+      energy = energy + V_ex(species, nbrs(i),9)
+    end do
+
+    deallocate(nbrs)
+
+  end function bcc_shell9_energy
 
   !--------------------------------------------------------------------!
   ! Function to compute the energy for an interaction up to the 1st    !
