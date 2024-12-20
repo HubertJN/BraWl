@@ -7,28 +7,19 @@ import os
 from matplotlib.colors import ListedColormap
 import matplotlib.colors as mcolors
 import copy
+import itertools
 np.set_printoptions(suppress=True)
 plt.rcParams.update({"text.usetex": True,
                      "font.size": 12})
+plt.rc('font', family='serif')
+plt.rc('text', usetex=True)
+
+def flip(items, ncol):
+    return itertools.chain(*[items[i::ncol] for i in range(ncol)])
 
 def inner_mod(a,b):
     res = a%b
     return res if not res else res-b if a<0 else res
-
-colors = {
-    "soft_blue": "#4F81BD",
-    "muted_orange": "#F7A800",
-    "soft_red": "#D14F5D",
-    "gentle_green": "#6DAF69",
-    "soft_purple": "#9B59B6",
-    "dusty_pink": "#E17D85",
-    "slate_blue": "#6A7F99",
-    "warm_tan": "#D3B69B",
-    "earthy_brown": "#8E735B",
-    "moss_green": "#6A8A3B",
-    "rich_gold": "#B88A2A",
-    "charcoal_gray": "#4A4A48"
-}
 
 colors = {
     "steel_blue": "#1F77B4",
@@ -53,13 +44,6 @@ colors = {
     "light_turquoise": "#9EDAE5"
 }
 
-indexed_colors_values = {index: value for index, (key, value) in enumerate(colors.items())}
-# Convert hex to RGB, then to HSV
-rgb_colors = [mcolors.hex2color(color) for color in colors.values()]
-hsv_colors = [mcolors.rgb_to_hsv(rgb) for rgb in rgb_colors]
-# Sort colors based on the Hue value (hsv_colors[i][0])
-sorted_colors_by_hue = [indexed_colors_values[i] for i in np.argsort([hsv[0] for hsv in hsv_colors])]
-custom_cmap = ListedColormap(sorted_colors_by_hue)
 custom_cmap = ListedColormap(colors.values())
 mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=custom_cmap.colors)
 
@@ -106,13 +90,14 @@ N = 6
 bin_edges = bin_edges*ev_to_ry # converts from Ryd to eV
 
 orig_temp = 3000
-start_temp = 400
+start_temp = 600
 end_temp = 3000
 
 step_size = 25
 temperatures = np.arange(start_temp, end_temp+step_size, step_size)
-temperatures_plot = np.arange(start_temp, end_temp+(end_temp-start_temp)/15, (end_temp-start_temp)/15)
-temperatures_plot = np.round(temperatures_plot, -2).astype(np.int32)
+temperatures_plot = np.arange(start_temp, end_temp+200, 200).astype(np.int32)
+print(temperatures_plot)
+
 plt.plot(np.exp(wl_logdos))
 #plt.show()
 plt.close()
@@ -215,6 +200,8 @@ prob = np.exp(prob)
 prob = prob/(np.sum(prob))
 zero_energy = (bin_edges[:-1][np.argmax(prob)]+0.5*bin_width)/n_atoms*ev_to_mev
 
+hist_min = 0
+hist_max = 0
 # Loop over temperatures of interest
 for itemp, new_temp in enumerate(temperatures):
 
@@ -243,6 +230,11 @@ for itemp, new_temp in enumerate(temperatures):
         non_zero = np.nonzero(hist_prob)
         ax1.stairs(hist_prob[np.min(non_zero):np.max(non_zero)], bin_edges[np.min(non_zero):np.max(non_zero)+1]/n_atoms*ev_to_mev-zero_energy, label=strlabel, fill=True)
         hist_ax.stairs(hist_prob[np.min(non_zero):np.max(non_zero)], bin_edges[np.min(non_zero):np.max(non_zero)+1]/n_atoms*ev_to_mev-zero_energy, label=strlabel, fill=True)
+
+        if (bin_edges[np.max(non_zero)+1]/n_atoms*ev_to_mev-zero_energy > hist_max):
+          hist_max = bin_edges[np.max(non_zero)+1]/n_atoms*ev_to_mev-zero_energy
+        if (bin_edges[np.min(non_zero)]/n_atoms*ev_to_mev-zero_energy < hist_min):
+          hist_min = bin_edges[np.min(non_zero)]/n_atoms*ev_to_mev-zero_energy
 
     # Mean energy
     mean_energy = np.dot(bin_edges[:-1]+0.5*bin_width, prob)
@@ -344,24 +336,36 @@ cv_ax1_asro.set_xticklabels([])
 cv_ax1.grid(True, axis='x')
 cv_ax2.grid(True, axis='x')
 
-x_ticks_subplots = np.arange(np.around(start_temp/250, decimals=0)*250, np.around(end_temp/250, decimals=0)*250+250, 250)
-cv_ax1.set_xticks(x_ticks_subplots)
-cv_ax2.set_xticks(x_ticks_subplots)
-
-x_ticks_subplots = np.arange(np.around((bin_edges[0]/n_atoms*ev_to_mev-zero_energy)/10, decimals=0)*10, np.around((bin_edges[-1]/n_atoms*ev_to_mev-zero_energy)/10, decimals=0)*10+10, 10)
-
-hist_ax.set_xticks(x_ticks_subplots)
-
+asro_max = 0
+asro_min = 0
 cv_ax1.plot(temperatures, heat_caps, '-o', markersize=4, label="Heat Capacity")
 for ipair, pair in enumerate(pairs):
   cv_ax1_asro.plot(temperatures, asr_orders_1[ipair], label = elements[pair[0]] + '-' + elements[pair[1]])
+  if (np.max(asr_orders_1[ipair]) > asro_max):
+    asro_max = np.max(asr_orders_1[ipair])
+  if (np.min(asr_orders_1[ipair]) < asro_min):
+    asro_min = np.min(asr_orders_1[ipair])
 cv_ax2.plot(temperatures, heat_caps, '-o', markersize=4, label="Heat Capacity")
 for ipair, pair in enumerate(pairs):
   cv_ax2_asro.plot(temperatures, asr_orders_2[ipair], label = elements[pair[0]] + '-' + elements[pair[1]])
+  if (np.max(asr_orders_2[ipair]) > asro_max):
+    asro_max = np.max(asr_orders_2[ipair])
+  if (np.min(asr_orders_2[ipair]) < asro_min):
+    asro_min = np.min(asr_orders_2[ipair])
 
-hist_ax.legend(loc='upper center', bbox_to_anchor=(x_offset, y_offset), ncol=4)
-cv_ax2.legend(loc='upper center', bbox_to_anchor=(x_offset, y_offset-0.2))
-cv_ax2_asro.legend(loc='upper center', bbox_to_anchor=(x_offset, y_offset), ncol=int(len(pairs)/2))
+cv_ticks = 200
+x_ticks_subplots = np.arange(np.around(start_temp/cv_ticks, decimals=0)*cv_ticks, np.around(end_temp/cv_ticks, decimals=0)*cv_ticks+cv_ticks, cv_ticks)
+cv_ax1.set_xticks(x_ticks_subplots)
+cv_ax2.set_xticks(x_ticks_subplots)
+cv_ax2.tick_params(axis='both', pad=6)
+
+x_ticks_subplots = np.arange(np.around((bin_edges[0]/n_atoms*ev_to_mev-zero_energy)/10, decimals=0)*10, np.around((bin_edges[-1]/n_atoms*ev_to_mev-zero_energy)/10, decimals=0)*10+10, 10)
+hist_ax.set_xticks(x_ticks_subplots)
+
+handles, labels = hist_ax.get_legend_handles_labels()
+hist_ax.legend(flip(handles, 4), flip(labels, 4), loc='upper center', bbox_to_anchor=(x_offset, y_offset), ncol=4)
+cv_ax2.legend(loc='upper center', bbox_to_anchor=(x_offset, y_offset-0.225))
+cv_ax2_asro.legend(loc='upper center', bbox_to_anchor=(x_offset, y_offset-0.025), ncol=int(len(pairs)/2))
 
 margin_pct = 0.05
 for ax in [hist_ax, cv_ax1, cv_ax2, cv_ax1_asro, cv_ax2_asro]:
@@ -383,11 +387,18 @@ for ax in [hist_ax, cv_ax1, cv_ax2, cv_ax1_asro, cv_ax2_asro]:
 
 
   # Set the new ticks
-  ax.set_xticks(x_ticks_filtered)
-  ax.set_yticks(y_ticks_filtered)
+  #ax.set_xticks(x_ticks_filtered)
+  #ax.set_yticks(y_ticks_filtered)
 
-hist_ax.set_ylim(0, hist_ax.get_ylim()[1])
-cv_ax1.set_ylim(0, cv_ax1.get_ylim()[1])
+asro_diff = np.abs(asro_min - asro_max)
+hist_ax.set_xlim(hist_min,hist_max)
+hist_ax.set_ylim(0, hist_ax.get_ylim()[1]*1.01)
+cv_ax1.set_xlim(start_temp, end_temp)
+cv_ax1.set_ylim(0, cv_ax1.get_ylim()[1]*1.01)
+cv_ax1_asro.set_ylim(asro_min-0.01*asro_diff, asro_max+0.01*asro_diff)
+cv_ax2.set_xlim(start_temp, end_temp)
 cv_ax2.set_ylim(0, cv_ax2.get_ylim()[1])
+cv_ax2_asro.set_ylim(asro_min-0.01*asro_diff, asro_max+0.01*asro_diff)
+
 
 cv_fig.savefig('figures/{}.svg'.format(''.join(elements)), bbox_inches='tight')
