@@ -1,16 +1,5 @@
 import numpy as np
 import sys
-#from  netCDF4 import Dataset
-import matplotlib.pyplot as plt
-
-plt.rc('font', family='serif')#, serif='Times')
-plt.rc('text', usetex=True)
-plt.rc('xtick', labelsize=16)
-plt.rc('ytick', labelsize=16)
-plt.rc('axes', labelsize=16)
-plt.style.use('tableau-colorblind10')
-
-
 # Need to
 # Read in file
 # Delete relevant bits
@@ -114,4 +103,5 @@ def slice(filename, indices=[1,1,1], size=30):
     
     return
 
-slice('nbmota/proc_002config_at_T_0010.0.xyz', indices=[1,0,1], size=70)
+param_size = int(sys.argv[1])
+slice('AlTiVNb/grids/config0010.00.xyz', indices=[1,0,1], size=param_size)
