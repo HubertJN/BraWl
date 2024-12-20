@@ -90,12 +90,13 @@ N = 6
 bin_edges = bin_edges*ev_to_ry # converts from Ryd to eV
 
 orig_temp = 3000
-start_temp = 600
+start_temp = 0 
 end_temp = 3000
 
 step_size = 25
-temperatures = np.arange(start_temp, end_temp+step_size, step_size)
+temperatures = np.arange(start_temp, end_temp+step_size, step_size).astype(np.float64)
 temperatures_plot = np.arange(start_temp, end_temp+200, 200).astype(np.int32)
+temperatures[0] = 1e-64
 print(temperatures_plot)
 
 plt.plot(np.exp(wl_logdos))
@@ -104,15 +105,6 @@ plt.close()
 # ------------------------------------------------
 
 bin_width = bin_edges[1] - bin_edges[0]
-
-prob = np.zeros(len(bin_edges)-1)
-beta = 1.0/(kb_ry*orig_temp)
-for ibin, edge in enumerate(bin_edges[:-1]):
-    bin_energy = edge + 0.5*bin_width
-    prob[ibin] = np.exp(wl_logdos[ibin]-beta*bin_energy)
-plt.plot(prob)
-#plt.show()
-plt.close()
 
 wcs = np.zeros((len(U_data),n_species,n_species,2))
 for i in range(len(U_data)):
@@ -202,6 +194,7 @@ zero_energy = (bin_edges[:-1][np.argmax(prob)]+0.5*bin_width)/n_atoms*ev_to_mev
 
 hist_min = 0
 hist_max = 0
+prob_max = 0
 # Loop over temperatures of interest
 for itemp, new_temp in enumerate(temperatures):
 
@@ -215,26 +208,31 @@ for itemp, new_temp in enumerate(temperatures):
         bin_energy = edge + 0.5*bin_width
         prob[ibin] = wl_logdos[ibin]-beta*bin_energy
    
-    prob = prob-np.max(prob)/2
+    prob = prob-np.max(prob)
     prob = np.exp(prob)
 
     # Normalise
     prob = prob/(np.sum(prob))
-    
+    prob = np.nan_to_num(prob)
+
     # Only plot every 5th histogram to avoid crowding the axes
     if np.isin(temperatures_plot, int(new_temp)).any() == True:
-        strlabel = "T={} K".format(new_temp)
+        strlabel = "T={} K".format(int(new_temp))
         index_to_zero = np.where(prob < 1e-5)
         hist_prob = copy.deepcopy(prob)
         hist_prob[index_to_zero] = 0
         non_zero = np.nonzero(hist_prob)
         ax1.stairs(hist_prob[np.min(non_zero):np.max(non_zero)], bin_edges[np.min(non_zero):np.max(non_zero)+1]/n_atoms*ev_to_mev-zero_energy, label=strlabel, fill=True)
         hist_ax.stairs(hist_prob[np.min(non_zero):np.max(non_zero)], bin_edges[np.min(non_zero):np.max(non_zero)+1]/n_atoms*ev_to_mev-zero_energy, label=strlabel, fill=True)
+#        ax1.stairs(prob, bin_edges/n_atoms*ev_to_mev-zero_energy, label=strlabel, fill=True)
+#        hist_ax.stairs(prob, bin_edges/n_atoms*ev_to_mev-zero_energy, label=strlabel, fill=True)
 
         if (bin_edges[np.max(non_zero)+1]/n_atoms*ev_to_mev-zero_energy > hist_max):
           hist_max = bin_edges[np.max(non_zero)+1]/n_atoms*ev_to_mev-zero_energy
         if (bin_edges[np.min(non_zero)]/n_atoms*ev_to_mev-zero_energy < hist_min):
           hist_min = bin_edges[np.min(non_zero)]/n_atoms*ev_to_mev-zero_energy
+        if (np.max(prob) < 0.4 and np.max(prob) > prob_max):
+            prob_max = np.max(prob)
 
     # Mean energy
     mean_energy = np.dot(bin_edges[:-1]+0.5*bin_width, prob)
@@ -264,6 +262,14 @@ for itemp in range(1,len(temperatures)):
 
 for itemp, new_temp in enumerate(temperatures):
   entropies[itemp] = (mean_energies[itemp]-gibbs_energies[itemp])/new_temp
+
+# Clear out nan
+#mean_energies = np.nan_to_num(mean_energies)
+#heat_caps = np.nan_to_num(heat_caps)
+#entropies = np.nan_to_num(heat_caps)
+#asr_orders_1 = np.nan_to_num(asr_orders_1)
+#asr_orders_2 = np.nan_to_num(asr_orders_2)
+
 # Complete plots using data computed above
 local_max_indices = np.where((heat_caps[1:-1] > heat_caps[:-2]) & (heat_caps[1:-1] > heat_caps[2:]))[0] + 1
 local_min_indices = np.where((heat_caps[1:-1] < heat_caps[:-2]) & (heat_caps[1:-1] < heat_caps[2:]))[0] + 1
@@ -392,7 +398,7 @@ for ax in [hist_ax, cv_ax1, cv_ax2, cv_ax1_asro, cv_ax2_asro]:
 
 asro_diff = np.abs(asro_min - asro_max)
 hist_ax.set_xlim(hist_min,hist_max)
-hist_ax.set_ylim(0, hist_ax.get_ylim()[1]*1.01)
+hist_ax.set_ylim(0, prob_max*1.01)
 cv_ax1.set_xlim(start_temp, end_temp)
 cv_ax1.set_ylim(0, cv_ax1.get_ylim()[1]*1.01)
 cv_ax1_asro.set_ylim(asro_min-0.01*asro_diff, asro_max+0.01*asro_diff)
