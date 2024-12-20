@@ -30,7 +30,7 @@ module wang_landau
 
     ! Convert input variables to simulation variables
     eV_per_atom_to_Ry = setup%n_atoms/(eV_to_Ry*1000) ! Conversion meV/atom to Rydberg
-    setup%T = setup%T*k_b_in_Ry
+    setup%T = setup%T*k_b_in_Ry ! Convert temperature to simulation units
     wl_setup%energy_max = wl_setup%energy_max*eV_per_atom_to_Ry
     wl_setup%energy_min = wl_setup%energy_min*eV_per_atom_to_Ry
 
@@ -58,10 +58,16 @@ module wang_landau
     call lattice_shells(setup, shells, config)
 
     ! Burn-in MPI windows
-    call burn_in(...) ! Include radial density saving
+    call burn_in(setup, wl_setup, config, my_rank, mpi_index, window_rank_index, bin_edges, &
+                window_min_e, window_max_e, radial_record, rho_of_E, window_intervals)
 
     ! Perform initial pre-sampling
-    call pre_sampling(...) ! Include radial density saving
+    do while(minval(mpi_wl_hist) < 10.0_real64)
+      call sweep(setup, wl_setup, config, bin_edges, &
+                mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f, &
+                mpi_index, window_intervals, radial_record, rho_of_E)
+    end do
+    mpi_wl_hist = 0.0_real64
 
     ! Have one sweep between radial densities
     ! Program timing such that it excludes radial density calculation
@@ -70,7 +76,9 @@ module wang_landau
     do while(condition)
 
       ! Perform sweeps
-      call sweeps(...)
+      call sweep(setup, wl_setup, config, bin_edges, &
+                mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f, &
+                mpi_index, window_intervals, radial_record, rho_of_E)
 
       ! Calculate metrics from sweep
       call sweep_metrics(...)
@@ -96,6 +104,17 @@ module wang_landau
     end do
 
   end subroutine wl_main
+
+  ! Subroutine for finding the bin index
+  integer function bin_index(energy, bin_edges, bins) result(index)
+    integer, intent(in) :: bins
+    real(real64), intent(in) :: energy
+    real(real64), dimension(:), intent(in) :: bin_edges
+    real(real64) :: bin_range
+
+    bin_range = bin_edges(bins + 1) - bin_edges(1)
+    index = int(((energy - bin_edges(1))/(bin_range))*real(bins)) + 1
+  end function bin_index
 
   ! Subroutine that calculates energy range binning and populates bin_edges
   subroutine energy_binning(wl_setup, bin_edges)
@@ -194,14 +213,32 @@ module wang_landau
   end subroutine mpi_arrays
 
   ! Subroutine to burn-in MPI windows
-  subroutine burn_in(setup, wl_setup, config, my_rank, mpi_index, window_rank_index, &
-                     window_min_e, window_max_e)
+  subroutine burn_in(setup, wl_setup, config, my_rank, mpi_index, window_rank_index, bin_edges, &
+                     window_min_e, window_max_e, radial_record, rho_of_E, window_intervals)
+
     ! Subroutine input
+    type(run_params) :: setup
+    type(wl_params) :: wl_setup
+    integer(int16), dimension(:, :, :, :) :: config
+    integer, intent(in) :: my_rank, mpi_index, 
+    integer, dimension(:,:), intent(in) :: window_intervals
+    real(real64) :: window_min_e, window_max_e
+
+    ! Subroutine input-output
+    integer, dimension(:,:), intent(inout) :: radial_record
+    integer, dimension(:,:,:,:), intent(inout) :: rho_of_E
+
+    ! Subroutine internal
+    integer :: bin, rank, request, ierr, status
+    logical :: stop_burn_in, flag
+
+    ! Init
+    stop_burn_in = .False.
 
     ! Target energy
     target_energy = (window_min_e + window_max_e)/2.0_real64
 
-    ! Initiale configuration energy
+    ! Initial configuration energy
     e_unswapped = congif%full_energy(config)
 
     ! Non-blocking MPI receive
@@ -224,7 +261,12 @@ module wang_landau
           call MPI_SEND(stop_burn, 1, MPI_LOGICAL, rank, mpi_index, MPI_COMM_WORLD, ierr)
           call MPI_SEND(config, SIZE(config), MPI_SHORT, rank, mpi_index, MPI_COMM_WORLD, ierr)
         end do
+        exit
       end if
+
+      bin = bin_index(e_unswapped, bin_edges, wl_setup%bins)
+      call radial_density_record(setup, config, radial_record, rho_of_E, &
+                                intervals, mpi_index, bin)
 
       ! Make one MC trial
       ! Generate random numbers
@@ -249,10 +291,108 @@ module wang_landau
           e_unswapped = e_swapped
         else if (genrand() .lt. 0.001_real64) then ! to prevent getting stuck in local minimum (should adjust this later to something more scientific instead of an arbitrary number)
           e_unswapped = e_swapped
-        else
+        else    ! Loop indices    ! Loop indices
           call pair_swap(config, rdm1, rdm2)
-        end if
+        end if    ! Loop indices
       end if
     end do
 
   end subroutine burn_in
+
+  subroutine radial_density_record(setup, config, radial_record, rho_of_E, &
+                                   intervals, mpi_index, bin)
+    ! Subroutine input
+    type(run_params) :: setup
+    integer(int16), dimension(:, :, :, :) :: config
+    integer, intent(in) :: mpi_index, bin
+    integer, dimension(:,:), intent(in) :: intervals
+
+    ! Subroutine input-output
+    integer, dimension(:,:), intent(inout) :: radial_record
+    integer, dimension(:,:,:,:), intent(inout) :: rho_of_E
+
+    radial_record(iradial, 1) = radial_record(iradial, 1) + 1
+
+    if (bin > intervals(mpi_index,1) - 1 .and. bin < intervals(mpi_index,2) + 1) then
+      iradial = bin - intervals(mpi_index,1) + 1
+      if((radial_record(iradial, 1) >= setup%n_atoms) &
+        .and. radial_record(iradial, 2) < wl_setup%radial_samples ) then
+        radial_record(iradial, 1) = 0
+        radial_record(iradial, 2) = radial_record(iradial, 2) + 1
+        rho_of_E(:,:,:,bin) = rho_of_E(:,:,:,bin) + radial_densities(setup, config, setup%wc_range, shells)
+      end if
+    end if
+  end subroutine radial_density_record
+
+  subroutine sweep(setup, wl_setup, config, bin_edges, &
+                  mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f, &
+                  mpi_index, window_intervals, radial_record, rho_of_E)
+    
+    ! Subroutine input
+    integer(int16), dimension(:, :, :, :) :: config
+    class(run_params), intent(in) :: setup
+    class(wl_params), intent(in) :: wl_setup
+    integer, intent(in) :: mpi_start_idx, mpi_end_idx, mpi_index
+    real(real64), intent(in) :: wl_f
+    real(real64), dimension(:), intent(in) :: bin_edges
+
+    ! Subroutine input-output
+    integer, dimension(:,:), intent(inout) :: radial_record, intervals
+    real(real64), dimension(:), intent(inout) :: mpi_wl_hist, wl_logdos
+    real(real64), dimension(:,:,:,:), intent(inout) :: rho_of_E
+
+    ! Subroutine internal
+    integer, dimension(4) :: rdm1, rdm2
+    real(real64) :: e_swapped, e_unswapped, delta_e
+    integer :: i, ibin, jbin
+    integer(int16) :: site1, site2
+
+    ! Establish total energy before any moves
+    e_unswapped = setup%full_energy(config)
+    e_swapped = e_unswapped
+
+    do i = 1, wl_setup%mc_sweeps*setup%n_atoms
+
+      ! Make one MC trial
+      ! Generate random numbers
+      rdm1 = setup%rdm_site()
+      rdm2 = setup%rdm_site()
+
+      ! Get what is on those sites
+      site1 = config(rdm1(1), rdm1(2), rdm1(3), rdm1(4))
+      site2 = config(rdm2(1), rdm2(2), rdm2(3), rdm2(4))
+
+      call pair_swap(config, rdm1, rdm2)
+
+      ! Calculate energy if different species
+      if (site1 /= site2) then
+        e_swapped = setup%full_energy(config)
+      end if
+
+      ibin = bin_index(e_unswapped, bin_edges, wl_setup%bins)
+      jbin = bin_index(e_swapped, bin_edges, wl_setup%bins)
+
+      call radial_density_record(setup, config, radial_record, rho_of_E, &
+                                intervals, mpi_index, jbin)
+
+      ! Only compute energy change if within limits where V is defined and within MPI region
+      if (jbin > mpi_start_idx - 1 .and. jbin < mpi_end_idx + 1) then
+
+        ! Add change in V into diff_energy
+        delta_e = e_swapped - e_unswapped
+
+        ! Accept or reject move
+        if (genrand() .lt. exp((wl_logdos(ibin) - wl_logdos(jbin)))) then
+          e_unswapped = e_swapped
+        else
+          call pair_swap(config, rdm1, rdm2)
+          jbin = ibin
+        end if
+        mpi_wl_hist(jbin - mpi_start_idx + 1) = mpi_wl_hist(jbin - mpi_start_idx + 1) + 1.0_real64
+        wl_logdos(jbin) = wl_logdos(jbin) + wl_f
+      else
+        ! reject and reset
+        call pair_swap(config, rdm1, rdm2)
+      end if
+    end do
+  end subroutine sweep
