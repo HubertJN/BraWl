@@ -12,8 +12,7 @@ where the factor of $\frac{1}{2}$ accounts for double-counting.
 
 ## Citations
 ANY publications/presentations/further work resulting from the use of this software should cite the original publication for which it was developed:
-* C. D. Woodgate, J. B. Staunton, Phys. Rev. B **105**, 115124 (2023)
-DOI: [10.1103/PhysRevB.105.115124](https://doi.org/10.1103/PhysRevB.105.115124)
+* C. D. Woodgate, J. B. Staunton, [Phys. Rev. B **105**, 115124 (2023)](https://doi.org/10.1103/PhysRevB.105.115124)
 
 # Relevant Publications
 A list of publications obtained using this code is:
@@ -62,7 +61,7 @@ Christopher D. Woodgate
 Any/all contributions are welcome via pull requests. 
 
 ## License
-This software is released under the GPL license. See the file LICENSE.txt for details.
+This software is released under the LGPL-3.0 license. See the file LICENSE.txt for details.
 
 ## Questions, Brickbats, and Bouquets
 [Drop me an email](mailto:christopher.woodgate@physics.org) if you have any questions, comments, or feedback!
