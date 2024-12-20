@@ -31,10 +31,21 @@ module io
     call date_and_time(date=date,time=time)
 
     write(6,'(/,72("="))')
-    write(6,'(21x,"BraWl Version 0.2.1, 18.07.24")')
+    write(6,'(22x,"BraWl Version 0.2.1, 18.07.24")')
     write(6,'(72("-"))')
 
     if (point .eq. 's') then
+      write(6, '(20x,"    ____            _       ____")')
+      write(6, '(20x,"   / __ )_________ | |     / / /")')
+      write(6, '(20x,"  / __  / ___/ __ `/ | /| / / / ")')
+      write(6, '(20x," / /_/ / /  / /_/ /| |/ |/ / /  ")')
+      write(6, '(20x,"/_____/_/   \__,_/ |__/|__/_/   ")')
+      write(6, '(20x,"                                ")')
+      write(6,'(72("-"))')
+      write(6, '("  Authors: Hubert J. Naguszewski,  ")')
+      write(6, '("           Livia B. Partay,        ")')
+      write(6, '("           Christopher D. Woodgate")')
+      write(6,'(72("-"))')
       write(6,'(15x,"This run started at",1x,a," on",1x,a)')           &
                time(1:2)//":"//time(3:4)//":"//time(5:6),              &
                date(7:8)//"."//date(5:6)//"."//date(1:4)
