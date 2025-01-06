@@ -553,6 +553,16 @@ module wang_landau
   end subroutine adjust_parameters
 
   subroutine mpi_metadata(my_rank, mpi_index, num_walkers, rank_time, print_time)
+    ! Input
+    integer, intent(in) :: my_rank, mpi_index, num_walkers
+
+    ! Input-Output
+    real(real64), dimension(:), intent(inout) :: rank_time
+    real(real64), dimension(:,:), intent(inout) :: print_time
+
+    ! Internal
+    real(real64) :: time_total
+
     time_total = rank_time(mpi_index)
 
     call MPI_REDUCE(rank_time/num_walkers, print_time(:,1), num_windows, MPI_DOUBLE_PRECISION, &
