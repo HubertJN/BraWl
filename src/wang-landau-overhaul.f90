@@ -73,17 +73,22 @@ module wang_landau
     ! Program timing such that it excludes radial density calculation
 
     ! Main Wang-Landau sampling loop
+    time_start = mpi_wtime()
     do while(condition)
 
       ! Perform sweeps
       call sweep(setup, wl_setup, config, bin_edges, wl_logdos, wl_f, &
                 mpi_start_idx, mpi_end_idx, mpi_wl_hist, mpi_index, &
-                window_intervals, radial_record, rho_of_E)
+                window_intervals, radial_record, rho_of_E, &
+                time_start)
 
       ! Calculate flatness
       flatness =  calc_flatness(mpi_wl_hist)
 
       if (flatness > wl_setup%flatness .and. minval(mpi_wl_hist) > 1) then
+        time_end = mpi_wtime()
+        rank_time = 0.0_real64
+        rank_time(mpi_index) = time_end - time_start
         ! Average Density of States within MPI windows
         call dos_average(wl_setup, mpi_index, my_rank, num_walkers, &
                         window_rank_index, wl_logdos, wl_logdos_buffer)
@@ -98,11 +103,12 @@ module wang_landau
         call save_data(my_rank, bin_edges, wl_logdos, wl_hist) ! Include radial density
 
         ! Adjust sampling parameters 
-        call adjust_paramters(...)
+        call adjust_parameters(mpi_wl_hist, wl_f)
 
         ! MPI metadata and MPI window optimisation
         call mpi_metadata(...)
         call mpi_window_optimise(...)
+        time_start = mpi_wtime()
       end if
 
     end do
@@ -333,7 +339,8 @@ module wang_landau
 
   subroutine sweep(setup, wl_setup, config, bin_edges, wl_logdos, wl_f, &
                   mpi_start_idx, mpi_end_idx, mpi_wl_hist, mpi_index, &
-                  window_intervals, radial_record, rho_of_E)
+                  window_intervals, radial_record, rho_of_E, &
+                  time_start)
     
     ! Subroutine input
     integer(int16), dimension(:, :, :, :) :: config
@@ -347,10 +354,11 @@ module wang_landau
     integer, dimension(:,:), intent(inout) :: radial_record, intervals
     real(real64), dimension(:), intent(inout) :: mpi_wl_hist, wl_logdos
     real(real64), dimension(:,:,:,:), intent(inout) :: rho_of_E
+    real(real64), intent(inout) :: time_start
 
     ! Subroutine internal
     integer, dimension(4) :: rdm1, rdm2
-    real(real64) :: e_swapped, e_unswapped, delta_e
+    real(real64) :: e_swapped, e_unswapped, delta_e, radial_start, radial_end
     integer :: i, ibin, jbin
     integer(int16) :: site1, site2
 
@@ -379,8 +387,11 @@ module wang_landau
       ibin = bin_index(e_unswapped, bin_edges, wl_setup%bins)
       jbin = bin_index(e_swapped, bin_edges, wl_setup%bins)
 
+      radial_start = mpi_wtime()
       call radial_density_record(setup, config, radial_record, rho_of_E, &
                                 intervals, mpi_index, jbin)
+      radial_end = mpi_wtime()
+      time_start = time_start - (radial_end - radial_start)
 
       ! Only compute energy change if within limits where V is defined and within MPI region
       if (jbin > mpi_start_idx - 1 .and. jbin < mpi_end_idx + 1) then
@@ -531,3 +542,40 @@ module wang_landau
       call ncdf_writer_1d("wl_dos.dat", ierr, wl_logdos_write)
     end if
   end subroutine save_data
+
+  subroutine adjust_parameters(mpi_wl_hist, wl_f)
+    real(real64), dimension(:), intent(inout) :: mpi_wl_hist
+    real(real64), intent(inout) :: wl_f
+
+    mpi_wl_hist = 0.0_real64
+    wl_f = wl_f*1/2
+
+  end subroutine adjust_parameters
+
+  subroutine mpi_metadata(my_rank, mpi_index, num_walkers, rank_time, print_time)
+    time_total = rank_time(mpi_index)
+
+    call MPI_REDUCE(rank_time/num_walkers, print_time(:,1), num_windows, MPI_DOUBLE_PRECISION, &
+    MPI_SUM, 0, MPI_COMM_WORLD, ierror)
+
+    rank_time = HUGE(time_total)
+    rank_time(mpi_index) = time_total
+
+    call MPI_REDUCE(rank_time(mpi_index), print_time(:,2), num_windows, MPI_DOUBLE_PRECISION, &
+    MPI_MIN, 0, MPI_COMM_WORLD, ierror)
+
+    rank_time = 0.0_real64
+    rank_time(mpi_index) = time_total
+
+    call MPI_REDUCE(rank_time(mpi_index), print_time(:,3), num_windows, MPI_DOUBLE_PRECISION, &
+    MPI_MAX, 0, MPI_COMM_WORLD, ierror)
+
+    if (my_rank == 0) then
+      do i=1, num_windows
+        write (6, '(a,i0,a,f8.2,a,f8.2,a,f8.2,a)') "MPI Window: ", i, " | Avg. time: ", print_time(i,1), &
+        "s | Time min: ", print_time(i,2), "s Time max: " , print_time(i,3), "s"
+      end do
+      write (*, *)
+    end if
+
+  end subroutine mpi_metadata
