@@ -100,14 +100,16 @@ module wang_landau
                         wl_logdos, wl_logdos_buffer, wl_logdos_write)
 
         ! Save data with NetCDF 
-        call save_data(my_rank, bin_edges, wl_logdos, wl_hist) ! Include radial density
+        call save_data(setup, my_rank, bin_edges, wl_logdos, wl_hist, bin_energy, num_walkers, &
+                      rho_saved, radial_min, rho_of_E, rho_of_E_buffer)
 
         ! Adjust sampling parameters 
         call adjust_parameters(mpi_wl_hist, wl_f)
 
         ! MPI metadata and MPI window optimisation
-        call mpi_metadata(...)
-        call mpi_window_optimise(...)
+        call mpi_metadata(my_rank, mpi_index, num_walkers, rank_time, rank_all_time)
+        call mpi_window_optimise(wl_setup, my_rank, window_intervals, window_indices, &
+                                mpi_bins, mpi_index, rank_time, rank_all_time)
         time_start = mpi_wtime()
       end if
 
@@ -210,18 +212,22 @@ module wang_landau
     ! Loop indices
     integer :: i
 
-    window_indices(1, 1) = window_intervals(1,1)
-    window_indices(1,2) = INT(window_intervals(1,2) + ABS(window_intervals(2,1)-window_intervals(2,2))*wl_setup%bin_overlap)
+    window_indices(1,1) = window_intervals(1,1)
+    window_indices(1,2) = INT(window_intervals(1,2) &
+                        + ABS(window_intervals(2,1)-window_intervals(2,2))*wl_setup%bin_overlap)
     do i = 2, wl_setup%num_windows-1
-      window_indices(i, 1) = INT(window_intervals(i,1) - ABS(window_intervals(i-1,1)-window_intervals(i-1,2))*wl_setup%bin_overlap)
-      window_indices(i, 2) = INT(window_intervals(i,2) + ABS(window_intervals(i+1,1)-window_intervals(i+1,2))*wl_setup%bin_overlap)
+      window_indices(i,1) = INT(window_intervals(i,1) &
+                          - ABS(window_intervals(i-1,1)-window_intervals(i-1,2)) *wl_setup%bin_overlap)
+      window_indices(i,2) = INT(window_intervals(i,2) &
+                          + ABS(window_intervals(i+1,1)-window_intervals(i+1,2))*wl_setup%bin_overlap)
     end do
-    window_indices(wl_setup%num_windows, 1) = INT(window_intervals(wl_setup%num_windows,1) - ABS(window_intervals(wl_setup%num_windows-1,1) &
-                                    -window_intervals(wl_setup%num_windows-1,2))*wl_setup%bin_overlap)
+    window_indices(wl_setup%num_windows,1) = INT(window_intervals(wl_setup%num_windows,1) &
+                                            - ABS(window_intervals(wl_setup%num_windows-1,1) &
+                                            -window_intervals(wl_setup%num_windows-1,2))*wl_setup%bin_overlap)
     window_indices(wl_setup%num_windows,2) = window_intervals(wl_setup%num_windows,2)
 
     mpi_index = my_rank/wl_setup%num_windows + 1
-    mpi_bins = window_indices(mpi_index, 2) - window_indices(mpi_index, 1) + 1
+    mpi_bins = window_indices(mpi_index,2) - window_indices(mpi_index,1) + 1
 
   end subroutine mpi_arrays
 
@@ -233,7 +239,7 @@ module wang_landau
     type(run_params) :: setup
     type(wl_params) :: wl_setup
     integer(int16), dimension(:, :, :, :) :: config
-    integer, intent(in) :: my_rank, mpi_index, 
+    integer, intent(in) :: my_rank, mpi_index
     integer, dimension(:,:), intent(in) :: window_intervals
     real(real64) :: window_min_e, window_max_e
 
@@ -242,6 +248,7 @@ module wang_landau
     integer, dimension(:,:,:,:), intent(inout) :: rho_of_E
 
     ! Subroutine internal
+    integer, dimension(4) :: rdm1, rdm2
     integer :: bin, rank, request, ierror, status
     logical :: stop_burn_in, flag
 
@@ -252,7 +259,7 @@ module wang_landau
     target_energy = (window_min_e + window_max_e)/2.0_real64
 
     ! Initial configuration energy
-    e_unswapped = congif%full_energy(config)
+    e_unswapped = config%full_energy(config)
 
     ! Non-blocking MPI receive
     call MPI_IRECV(stop_burn_in, 1, MPI_LOGICAL, MPI_ANY_SOURCE, mpi_index, MPI_COMM_WORLD, request, ierror)
@@ -552,40 +559,82 @@ module wang_landau
 
   end subroutine adjust_parameters
 
-  subroutine mpi_metadata(my_rank, mpi_index, num_walkers, rank_time, print_time)
+  subroutine mpi_metadata(my_rank, mpi_index, num_walkers, rank_time, rank_all_time)
     ! Input
     integer, intent(in) :: my_rank, mpi_index, num_walkers
 
     ! Input-Output
     real(real64), dimension(:), intent(inout) :: rank_time
-    real(real64), dimension(:,:), intent(inout) :: print_time
+    real(real64), dimension(:,:), intent(inout) :: rank_all_time
 
     ! Internal
     real(real64) :: time_total
+    integer :: ierror
 
     time_total = rank_time(mpi_index)
 
-    call MPI_REDUCE(rank_time/num_walkers, print_time(:,1), num_windows, MPI_DOUBLE_PRECISION, &
+    call MPI_REDUCE(rank_time/num_walkers, rank_all_time(:,1), wl_setup%num_windows, MPI_DOUBLE_PRECISION, &
     MPI_SUM, 0, MPI_COMM_WORLD, ierror)
 
     rank_time = HUGE(time_total)
     rank_time(mpi_index) = time_total
 
-    call MPI_REDUCE(rank_time(mpi_index), print_time(:,2), num_windows, MPI_DOUBLE_PRECISION, &
+    call MPI_REDUCE(rank_time(mpi_index), rank_all_time(:,2), wl_setup%num_windows, MPI_DOUBLE_PRECISION, &
     MPI_MIN, 0, MPI_COMM_WORLD, ierror)
 
     rank_time = 0.0_real64
     rank_time(mpi_index) = time_total
 
-    call MPI_REDUCE(rank_time(mpi_index), print_time(:,3), num_windows, MPI_DOUBLE_PRECISION, &
+    call MPI_REDUCE(rank_time(mpi_index), rank_all_time(:,3), wl_setup%num_windows, MPI_DOUBLE_PRECISION, &
     MPI_MAX, 0, MPI_COMM_WORLD, ierror)
 
+    call MPI_BCAST(rank_all_time, wl_setup%num_windows*3, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierror)
+
     if (my_rank == 0) then
-      do i=1, num_windows
-        write (6, '(a,i0,a,f8.2,a,f8.2,a,f8.2,a)') "MPI Window: ", i, " | Avg. time: ", print_time(i,1), &
-        "s | Time min: ", print_time(i,2), "s Time max: " , print_time(i,3), "s"
+      do i=1, wl_setup%num_windows
+        write (6, '(a,i0,a,f8.2,a,f8.2,a,f8.2,a)') "MPI Window: ", i, " | Avg. time: ", rank_all_time(i,1), &
+        "s | Time min: ", rank_all_time(i,2), "s Time max: " , rank_all_time(i,3), "s"
       end do
       write (*, *)
     end if
 
   end subroutine mpi_metadata
+
+  subroutine mpi_window_optimise(wl_setup, my_rank, window_intervals, window_indices, &
+                                mpi_bins, mpi_index, rank_time, rank_all_time)
+    ! Input
+    type(wl_params) :: wl_setup
+    integer, intent(in) :: my_rank, mpi_index
+    real(real64), dimension(:), intent(inout) :: rank_time
+    real(real64), dimension(:,:), intent(inout) :: rank_all_time
+
+    ! Output
+    integer, dimension(:,:), intent(out) :: window_indices
+
+    ! Input-Output
+    integer, dimension(:,:), intent(inout) :: window_intervals
+    integer, intent(inout) :: mpi_bins
+
+    ! Internal
+    integer :: i
+    real(real64) :: time_average
+
+    ! Perform window size adjustment then broadcast
+    if (my_rank == 0) then                            
+      time_average = SUM(rank_all_time(:,1))/SIZE(rank_all_time(:,1))
+      window_intervals(1, 2) = FLOOR((window_intervals(mpi_index, 2) - window_intervals(mpi_index, 1) + 1)*rank_all_time(1,1)/time_average)
+      do i=2, num_windows
+        time_bins = window_intervals(i, 2) - window_intervals(i, 1) + 1
+        time_mult = rank_all_time(i,1)/time_average
+        window_intervals(i, 1) = window_intervals(i-1, 2) + 1
+        window_intervals(i, 2) = window_intervals(i, 1) + FLOOR((bins)*time_mult) - 1
+      end do
+      window_intervals(wl_setup%num_windows, 2) = wl_setup%bins
+    end if
+
+    call MPI_BCAST(window_intervals, wl_setup%num_windows*2, MPI_INT, 0, MPI_COMM_WORLD, ierror)
+
+    ! Populate MPI arrays and indlude MPI window overlap
+    call mpi_arrays(wl_setup, my_rank, window_intervals, &
+                    window_indices, mpi_bins, mpi_index)
+  end subroutine mpi_window_optimise
