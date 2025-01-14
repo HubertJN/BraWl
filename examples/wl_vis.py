@@ -59,7 +59,6 @@ bin_edges = np.array(bin_edges["grid data"][:], dtype=np.float64)
 filename = "{}/wl_dos.dat".format(directory)
 wl_logdos = nc.Dataset(filename)
 wl_logdos = np.array(wl_logdos["grid data"][:], dtype=np.float64)
-#print(wl_logdos)
 
 filename = "{}/radial_densities/rho_of_E.dat".format(directory)  
 rho_of_E = nc.Dataset(filename)
@@ -70,9 +69,6 @@ U_data = rho_of_E.variables['U data'][:]
 elements = ['Al', 'Ti', 'Cr', 'Mo']
 n_species = 4
 concentrations = 1.0/n_species*np.ones(n_species)
-
-wl_logdos = wl_logdos - np.max(wl_logdos)
-wl_logdos = np.log(np.exp(wl_logdos)/np.sum(np.exp(wl_logdos)))
 
 filename = "{}/wl_hist.dat".format(directory)
 wl_hist = nc.Dataset(filename)
@@ -88,6 +84,11 @@ N = 6
 
 # unit conversion
 bin_edges = bin_edges*ev_to_ry # converts from Ryd to eV
+print(bin_edges)
+print(wl_logdos-np.min(wl_logdos))
+
+wl_logdos = wl_logdos - np.max(wl_logdos)
+wl_logdos = np.log(np.exp(wl_logdos)/np.sum(np.exp(wl_logdos)))
 
 orig_temp = 3000
 start_temp = 0 
