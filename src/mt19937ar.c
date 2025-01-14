@@ -99,7 +99,7 @@ unsigned long f90_init_genrand(int seedtime, int my_rank){
   /*printf(" Recieved seedtime = %d\n", seedtime);*/
   if(seedtime) {
     seed = time(NULL);
-    seed += 11*my_rank;
+    seed += 1234*my_rank;
     if(seed%2 ==0) { seed += 1;}
     /*printf(" # Using time-based random seed %ld\n",seed);*/
   }
