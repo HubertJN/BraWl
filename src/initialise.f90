@@ -107,6 +107,14 @@ module initialise
         setup%nbr_energy => bcc_energy_5shells
       else if (setup%interaction_range .eq. 6) then
         setup%nbr_energy => bcc_energy_6shells
+      else if (setup%interaction_range .eq. 7) then
+        setup%nbr_energy => bcc_energy_7shells
+      else if (setup%interaction_range .eq. 8) then
+        setup%nbr_energy => bcc_energy_8shells
+      else if (setup%interaction_range .eq. 9) then
+        setup%nbr_energy => bcc_energy_9shells
+      else if (setup%interaction_range .eq. 10) then
+        setup%nbr_energy => bcc_energy_10shells
       else
         print*, 'Unsupported number of shells'
         stop

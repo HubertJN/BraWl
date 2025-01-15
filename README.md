@@ -12,18 +12,17 @@ where the factor of $\frac{1}{2}$ accounts for double-counting.
 
 ## Citations
 ANY publications/presentations/further work resulting from the use of this software should cite the original publication for which it was developed:
-* C. D. Woodgate, J. B. Staunton, Phys. Rev. B **105**, 115124 (2023)
-DOI: [10.1103/PhysRevB.105.115124](https://doi.org/10.1103/PhysRevB.105.115124)
+* C. D. Woodgate, J. B. Staunton, [Phys. Rev. B **105**, 115124 (2023)](https://doi.org/10.1103/PhysRevB.105.115124)
 
 # Relevant Publications
 A list of publications obtained using this code is:
-* C. D. Woodgate, J. B. Staunton, Phys. Rev. B **105**, 115124 (2022). DOI: [https://doi.org/10.1103/PhysRevB.105.115124](https://doi.org/10.1103/PhysRevB.105.115124)
-* C. D. Woodgate, J. B. Staunton, Phys. Rev. Mater. **7**, 013801 (2023). DOI: [https://doi.org/10.1103/PhysRevMaterials.7.013801](https://doi.org/10.1103/PhysRevMaterials.7.013801)
-* C. D. Woodgate, D. Hedlund, L. H. Lewis, J. B. Staunton, Phys. Rev. Mater. **7**, 053801 (2023). DOI: [https://doi.org/10.1103/PhysRevMaterials.7.053801](https://doi.org/10.1103/PhysRevMaterials.7.053801)
-* C. D. Woodgate, J. B. Staunton, J. Appl. Phys. **135**, 135106 (2024). DOI: [https://doi.org/10.1063/5.0200862](https://doi.org/10.1063/5.0200862)
-* L. Shenoy, C. D. Woodgate, J. B. Staunton, A. P. Bartók, C. S. Becquart, C. Domain, J. R. Kermode, [Phys. Rev. Mater. **8**, 033804 (2024)](https://doi.org/10.1103/PhysRevMaterials.8.033804).
-* C. D. Woodgate, G. A. Marchant, L. B. Pártay, J. B. Staunton, [npj Comput. Mater. **10**, 271 (2024)](https://doi.org/10.1038/s41524-024-01445-w).
-* C. D. Woodgate, L. H. Lewis, J. B. Staunton, [npj Comput. Mater. **10**, 272 (2024)](https://doi.org/10.1038/s41524-024-01435-y).
+1. C. D. Woodgate, J. B. Staunton, [Phys. Rev. B **105**, 115124 (2022)](https://doi.org/10.1103/PhysRevB.105.115124).
+2. C. D. Woodgate, J. B. Staunton, [Phys. Rev. Mater. **7**, 013801 (2023)](https://doi.org/10.1103/PhysRevMaterials.7.013801).
+3. C. D. Woodgate, D. Hedlund, L. H. Lewis, J. B. Staunton, [Phys. Rev. Mater. **7**, 053801 (2023)](https://doi.org/10.1103/PhysRevMaterials.7.053801).
+4. C. D. Woodgate, J. B. Staunton, [J. Appl. Phys. **135**, 135106 (2024)](https://doi.org/10.1063/5.0200862).
+5. L. Shenoy, C. D. Woodgate, J. B. Staunton, A. P. Bartók, C. S. Becquart, C. Domain, J. R. Kermode, [Phys. Rev. Mater. **8**, 033804 (2024)](https://doi.org/10.1103/PhysRevMaterials.8.033804).
+6. C. D. Woodgate, G. A. Marchant, L. B. Pártay, J. B. Staunton, [npj Comput. Mater. **10**, 271 (2024)](https://doi.org/10.1038/s41524-024-01445-w).
+7. C. D. Woodgate, L. H. Lewis, J. B. Staunton, [npj Comput. Mater. **10**, 272 (2024)](https://doi.org/10.1038/s41524-024-01435-y).
 
 ## Compilation
 At the moment the code is only tested with gfortran and OpenMPI. Put the code in a directory like `~/codes/BraWl`. It is my intention to test other compilers in future: watch this space!
@@ -41,6 +40,7 @@ and run it in a directory with a suitable input file via
 ```
 ~/codes/BraWl/brawl.run
 ```
+(Note that the code, by default, will look for a file called `input.txt` as its input.)
 
 ## Running the code
 If you navigate to the `examples` subdirectory, you should find two examples demonstrating the code's usage which can be run inside those directories.
@@ -48,7 +48,7 @@ If you navigate to the `examples` subdirectory, you should find two examples dem
 Most of the options specified in the input file are fairly self-explanatory. The least obvious is the `mode' option. Because it is my intention to include a 2D (and potentially 1D) option in future, the first digit indicates the number of spatial dimensions for the simulation. Then the last two digits the mode. At present, the implemented options are:
 - 01: Simulated Annealing. Uses the Metropolis Monte Carlo algorithm with Kawasaki dynamics to perform simulated annealing on a system in an initially random configuration.
 - 02: Draw Decorellated Samples. Optionally performs simulated annealing then draws samples of the grid N Monte Carlo steps apart. Good for generating supercell configurations for use other methods. *E.g.* this recent reference where the code was used to generate training/test data for a machine-learned interatomic potential: L. Shenoy, C. D. Woodgate, J. B. Staunton, A. P. Bartók, C. S. Becquart, C. Domain, J. R. Kermode, [Phys. Rev. Mater. **8**, 033804 (2024)](https://doi.org/10.1103/PhysRevMaterials.8.033804).
-- 03: Nested sampling. Uses the nested sampling algorithm to sample the configuration space from random initial configurations, allowing to calculate the partition function at an arbitrary temperature during the post-processing step. This procedure is outlined in a recent preprint: C. D. Woodgate, G. A. Marchant, L. B. Pártay, J. B. Staunton, [arXiv:2404.13173](https://doi.org/10.48550/arXiv.2404.13173).
+- 03: Nested sampling. Uses the nested sampling algorithm to sample the configuration space from random initial configurations, allowing to calculate the partition function at an arbitrary temperature during the post-processing step. This procedure is outlined in a recent publication: C. D. Woodgate, G. A. Marchant, L. B. Pártay, J. B. Staunton, [npj Comput. Mater. **10**, 271 (2024)](https://doi.org/10.1038/s41524-024-01445-w).
 
 ## Author
 Christopher D. Woodgate
@@ -61,7 +61,7 @@ Christopher D. Woodgate
 Any/all contributions are welcome via pull requests. 
 
 ## License
-This software is released under the GPL license. See the file LICENSE.txt for details.
+This software is released under the LGPL-3.0 license. See the file LICENSE.txt for details.
 
 ## Questions, Brickbats, and Bouquets
 [Drop me an email](mailto:christopher.woodgate@physics.org) if you have any questions, comments, or feedback!

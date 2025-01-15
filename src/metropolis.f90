@@ -375,9 +375,11 @@ module metropolis
 
     ! If they are the same chemical species, we don't need to proceed
     ! further
-    ! Note: currently this is counted as an 'unaccepted' move
+    ! Note: previously this was counted as an 'unaccepted' move. Now we
+    !       accept the move as this recovers a 100% acceptance rate in
+    !       the limit T->\infty.
     if (site1 == site2) then
-      accept = 0
+      accept = 1
       return
     end if
 
@@ -442,9 +444,11 @@ module metropolis
 
     ! If they are the same chemical species, we don't need to proceed
     ! further
-    ! Note: currently this is counted as an 'unaccepted' move
+    ! Note: previously this was counted as an 'unaccepted' move. Now we
+    !       accept the move as this recovers a 100% acceptance rate in
+    !       the limit T->\infty.
     if (site1 == site2) then
-      accept=0
+      accept = 1
       return
     end if
 
