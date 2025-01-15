@@ -20,7 +20,7 @@ contains
   subroutine wl_main(setup, wl_setup, my_rank)
     ! Rank of this processor
     integer, intent(in) :: my_rank
-    integer :: ierror, num_proc
+    integer :: ierror, mpi_processes
 
     ! Input file data types
     type(run_params) :: setup
@@ -49,7 +49,7 @@ contains
     ! mpi variables
     real(real64) :: start, end, time_max, time_min
     integer :: mpi_bins, mpi_start_idx, mpi_end_idx, mpi_index, mpi_start_idx_buffer, mpi_end_idx_buffer, beta_index
-    integer, allocatable :: intervals(:,:)
+    integer, allocatable :: window_intervals(:,:), window_rank_index(:,:)
     real(real64) :: scale_factor, scale_count, wl_logdos_min, bin_overlap, beta_diff, beta_original, beta_merge
     real(real64), allocatable :: mpi_bin_edges(:), mpi_wl_hist(:), wl_logdos_buffer(:), wl_logdos_write(:)
     real(real64), allocatable :: rank_time(:), rank_time_buffer(:,:)
@@ -72,14 +72,14 @@ contains
     radial_file = "radial_densities/rho_of_E.dat"
 
     ! Get number of MPI processes
-    call MPI_COMM_SIZE(MPI_COMM_WORLD, num_proc, ierror)
+    call MPI_COMM_SIZE(MPI_COMM_WORLD, mpi_processes, ierror)
 
     ! Check if number of MPI processes is divisible by number of windows
     bins = wl_setup%bins
     num_windows = wl_setup%num_windows
-    num_walkers = num_proc/num_windows
+    num_walkers = mpi_processes/num_windows
     wl_setup%radial_samples = wl_setup%radial_samples/num_walkers
-    if (MOD(num_proc, num_windows) /= 0) then
+    if (MOD(mpi_processes, num_windows) /= 0) then
       if (my_rank == 0) then
         write (6, '(72("~"))')
         write (6, '(5("~"),x,"Error: Number of MPI processes not divisible by num_windows",x,6("~"))')
@@ -91,36 +91,16 @@ contains
 
     ! Get start and end indices for energy windows
     allocate(window_indices(num_windows, 2))
-    allocate(intervals(num_windows, 2))
+    allocate(window_intervals(wl_setup%num_windows, 2))
+    allocate(window_rank_index(wl_setup%num_windows, 2))
     
-    call divide_range(1, bins, num_windows, intervals)
-    bin_overlap = wl_setup%bin_overlap
+    call divide_range(my_rank, wl_setup, mpi_processes, window_intervals, window_rank_index, num_walkers)
 
-    window_indices(1, 1) = intervals(1,1)
-    window_indices(1,2) = INT(intervals(1,2) + ABS(intervals(2,1)-intervals(2,2))*bin_overlap)
-    do i = 2, num_windows-1
-      window_indices(i, 1) = INT(intervals(i,1) - ABS(intervals(i-1,1)-intervals(i-1,2))*bin_overlap)
-      window_indices(i, 2) = INT(intervals(i,2) + ABS(intervals(i+1,1)-intervals(i+1,2))*bin_overlap)
-    end do
-    window_indices(num_windows, 1) = INT(intervals(num_windows,1) - ABS(intervals(num_windows-1,1) &
-                                    -intervals(num_windows-1,2))*bin_overlap)
-    window_indices(num_windows,2) = intervals(num_windows,2)
-
-    mpi_index = my_rank/num_walkers + 1
-    mpi_start_idx = window_indices(mpi_index, 1)
-    mpi_end_idx = window_indices(mpi_index, 2)
-    mpi_bins = mpi_end_idx - mpi_start_idx + 1
-
-    if (my_rank == 0) then
-      print*, "Window Indices"
-      print*, window_indices(:, 1)
-      print*, window_indices(:, 2)
-      print*, "Window Bins"
-      print*, window_indices(:, 2) - window_indices(:, 1) + 1
-    end if
+    call create_window_intervals(wl_setup, num_walkers, window_intervals, window_indices, &
+    mpi_index, mpi_start_idx, mpi_end_idx, mpi_bins)
 
     ! allocate arrays
-    allocate(radial_record(intervals(mpi_index,2) - intervals(mpi_index,1) + 1, 2))
+    allocate(radial_record(window_intervals(mpi_index,2) - window_intervals(mpi_index,1) + 1, 2))
     allocate(bin_edges(bins + 1))
     allocate(wl_hist(bins))
     allocate(wl_logdos(bins))
@@ -137,26 +117,7 @@ contains
       allocate(wl_logdos_write(bins))
     end if
 
-    !  Set temperature in appropriate units for simulation
-    temp = setup%T*k_b_in_Ry
-    beta = 1.0_real64/temp
-
-    ! Conversion meV/atom to Rydberg
-    energy_to_ry = setup%n_atoms/(eV_to_Ry*1000)
-
-    ! Create energy bins and set mpi bins
-    j = 1
-    bin_width = (wl_setup%energy_max - wl_setup%energy_min)/real(wl_setup%bins)*energy_to_ry
-    do i = 1, bins + 1
-      bin_edges(i) = wl_setup%energy_min*energy_to_ry + (i - 1)*bin_width
-    end do
-    do i = 1, bins
-      bin_energy(i) = wl_setup%energy_min*energy_to_ry + (i - 0.5)*bin_width
-    end do
-    do i = mpi_start_idx, mpi_end_idx + 1
-      mpi_bin_edges(j) = bin_edges(i)
-      j = j + 1
-    end do
+    call create_energy_bins(setup, wl_setup, mpi_start_idx, mpi_end_idx, bin_edges, bin_energy, mpi_bin_edges)
 
     ! Target energy for burn in
     target_energy = (mpi_bin_edges(1) + mpi_bin_edges(SIZE(mpi_bin_edges)))/2
@@ -182,8 +143,8 @@ contains
     !---------!
     ! Burn in !
     !---------!
-    call burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges), &
-                    num_proc, num_walkers, my_rank, mpi_index)
+    call burn_in(setup, config, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges), &
+                mpi_processes, num_walkers, my_rank, mpi_index, window_rank_index)
     print*, "Rank: ", my_rank, "Burn-in complete"
     call comms_wait()
     if (my_rank == 0) then
@@ -205,7 +166,7 @@ contains
         hist_reset = .False.
       end if
       call sweeps(setup, wl_setup, config, temp, bins, bin_edges, mpi_start_idx, mpi_end_idx, &
-                  mpi_wl_hist, wl_logdos, wl_f, mpi_index, intervals, radial_record, rho_of_E)
+                  mpi_wl_hist, wl_logdos, wl_f, mpi_index, window_intervals, radial_record, rho_of_E)
 
       flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
       bins_min = count(mpi_wl_hist > min_val)/REAL(mpi_bins)
@@ -290,7 +251,7 @@ contains
 
         call MPI_REDUCE(radial_min, radial_min_buffer, 1, MPI_DOUBLE_PRECISION, &
         MPI_SUM, 0, MPI_COMM_WORLD, ierror)
-        radial_min_buffer = radial_min_buffer/num_proc
+        radial_min_buffer = radial_min_buffer/mpi_processes
 
         call comms_wait()
 
@@ -378,12 +339,12 @@ contains
 
   subroutine sweeps(setup, wl_setup, config, temp, bins, bin_edges, &
                          mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f, &
-                         mpi_index, intervals, radial_record, rho_of_E)
+                         mpi_index, window_intervals, radial_record, rho_of_E)
     integer(int16), dimension(:, :, :, :) :: config
     class(run_params), intent(in) :: setup
     class(wl_params), intent(in) :: wl_setup
     integer, intent(in) :: bins, mpi_start_idx, mpi_end_idx, mpi_index
-    integer, dimension(:,:), intent(inout) :: radial_record, intervals
+    integer, dimension(:,:), intent(inout) :: radial_record, window_intervals
     real(real64), dimension(:,:,:,:), intent(inout) :: rho_of_E
     real(real64), dimension(:), intent(in) :: bin_edges
     real(real64), dimension(:), intent(inout) :: mpi_wl_hist, wl_logdos
@@ -426,8 +387,8 @@ contains
       if (jbin > mpi_start_idx - 1 .and. jbin < mpi_end_idx + 1) then
 
         ! Calculate radial density and add to appropriate location in array
-        if (ibin > intervals(mpi_index,1) - 1 .and. ibin < intervals(mpi_index,2) + 1) then
-          iradial = ibin - intervals(mpi_index,1) + 1
+        if (ibin > window_intervals(mpi_index,1) - 1 .and. ibin < window_intervals(mpi_index,2) + 1) then
+          iradial = ibin - window_intervals(mpi_index,1) + 1
           if(i > MOD(radial_record(iradial, 1),wl_setup%mc_sweeps*setup%n_atoms) &
             .and. radial_record(iradial, 2) < wl_setup%radial_samples ) then
             radial_record(iradial, 1) = radial_record(iradial, 1) + INT(setup%n_atoms*0.05)
@@ -456,46 +417,52 @@ contains
 
   end subroutine sweeps
 
-  subroutine burn_in(setup, config, target_energy, min_e, max_e, &
-                        num_proc, num_walkers, my_rank, mpi_index)
+  subroutine burn_in(setup, config, min_e, max_e, &
+                        mpi_processes, num_walkers, my_rank, mpi_index, window_rank_index)
     integer(int16), dimension(:, :, :, :) :: config
     class(run_params), intent(in) :: setup
-    real(real64), intent(in) :: target_energy, min_e, max_e
-    integer, intent(in) :: num_proc, num_walkers, my_rank, mpi_index
+    real(real64), intent(in) :: min_e, max_e
+    integer, intent(in) :: mpi_processes, num_walkers, my_rank, mpi_index
+    integer, dimension(:,:), intent(in) :: window_rank_index
 
     integer, dimension(4) :: rdm1, rdm2
-    real(real64) :: e_swapped, e_unswapped, delta_e
+    real(real64) :: e_swapped, e_unswapped, delta_e, target_energy
     integer(int16) :: site1, site2
-    logical :: stop_burn = .False., flag
-    integer :: rank, rank_index, request, ierr, status, con_sum
+    logical :: stop_burn_in = .False., flag
+    integer :: rank, rank_index, request, ierror, status
+
+    ! Target energy
+    target_energy = (min_e + max_e)/2
 
     ! Establish total energy before any moves
     e_unswapped = setup%full_energy(config)
 
-    ! Non-blocking receive setup
-    if (mpi_index /= num_proc) then
-      call MPI_IRECV(stop_burn, 1, MPI_LOGICAL, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, request, ierr)
-    end if
-    do while (.True.)
-      call MPI_TEST(request, flag, MPI_STATUS_IGNORE, ierr)
-      if (stop_burn .eqv. .True. .and. mpi_index /= num_proc) then
-        call MPI_RECV(config, SIZE(config), MPI_SHORT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
-        !print*, my_rank, setup%full_energy(config), min_e, max_e
+    ! Non-blocking MPI receive
+    call MPI_IRECV(stop_burn_in, 1, MPI_LOGICAL, MPI_ANY_SOURCE, 10000, MPI_COMM_WORLD, request, ierror)
+
+    do while(.True.)
+      ! Check if MPI message received
+      call MPI_TEST(request, flag, MPI_STATUS_IGNORE, ierror)
+
+      ! Stop burn if other rank in window is burnt in
+      ! or if burnt in send configuration to rest of window
+      if (stop_burn_in .eqv. .True.) then
+        !print*, my_rank, "Waiting"
+        call MPI_RECV(config, SIZE(config), MPI_SHORT, MPI_ANY_SOURCE, 10001, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror) ! Check if you can put an array of accepted values in the source variable
+        !print*, my_rank, "Recieved"
         exit
-      else if (e_unswapped > min_e .and. e_unswapped < max_e .and. mpi_index /= num_proc) then
-        stop_burn = .True.
-        call MPI_CANCEL(request, ierr)
-        call MPI_REQUEST_FREE(request, ierr)
-        do rank=0, num_proc-1
-          rank_index = rank/num_walkers + 1 
-          if (rank /= my_rank .and. rank_index == mpi_index) then
-            !print*, mpi_index, my_rank, "Sending to", rank_index, rank
-            call MPI_SEND(stop_burn, 1, MPI_LOGICAL, rank, 0, MPI_COMM_WORLD, ierr)
-            call MPI_SEND(config, SIZE(config), MPI_SHORT, rank, 0, MPI_COMM_WORLD, ierr)
+      else if (e_unswapped > min_e .and. e_unswapped < max_e) then
+        
+        stop_burn_in = .True.
+        call MPI_CANCEL(request, ierror)
+        call MPI_REQUEST_FREE(request, ierror)
+        do rank=window_rank_index(mpi_index, 1), window_rank_index(mpi_index, 2)
+          if (rank /= my_rank) then
+           ! print*, my_rank, "Sent to", rank
+            call MPI_SEND(stop_burn_in, 1, MPI_LOGICAL, rank, 10000, MPI_COMM_WORLD, ierror)
+            call MPI_SEND(config, SIZE(config), MPI_SHORT, rank, 10001, MPI_COMM_WORLD, ierror)
           end if
         end do
-        exit
-      else if (e_unswapped > min_e .and. e_unswapped < max_e .and. mpi_index == num_proc) then
         exit
       end if
 
@@ -528,34 +495,102 @@ contains
     end do
   end subroutine burn_in
 
-  subroutine divide_range(start, finish, num_intervals, intervals)
-    integer, intent(in) :: num_intervals
-    integer, intent(in) :: start, finish
-    integer, intent(out) :: intervals(num_intervals, 2)
-    real(real64) :: factor, index, power, b, n, g, idx, z
+  subroutine divide_range(my_rank, wl_setup, mpi_process, window_intervals, window_rank_index, num_walkers)
+    ! Subroutine input
+    type(wl_params) :: wl_setup
+    integer, intent(in) :: my_rank, mpi_process
+
+    ! Subroutine output
+    integer, dimension(:, :), intent(out) :: window_intervals, window_rank_index
+    integer, intent(out) :: num_walkers
+
+    ! Loop indices
     integer :: i
 
-    intervals(1,1) = start
-    intervals(num_intervals,2) = finish
+    ! Calculation variables
+    real(real64) :: b, n, power, factor
+    ! Set first values outside of loop
+    window_intervals(1,1) = 1
+    window_intervals(wl_setup%num_windows,2) = wl_setup%bins
 
+    ! values for equation to generate bin distribution
+    ! factor derived from equation of form:
+    ! y = Ax^B + C
     power = 2
-    b = finish
-    n = num_intervals + 1
-    g = 0.2
-    idx = 3
-    z = 2
+    b = wl_setup%bins
+    n = wl_setup%num_windows + 1 ! +1 since "edges" are being obtained for window_intervals array
 
     factor = (b-1.0_real64)/((n+1.0_real64)**power-1.0_real64)
-    !factor = (1.0_real64 - b)/(EXP(g)-EXP(g*n))
-    !factor = (idx - b)/(EXP(g*z)-EXP(g*n))
 
-    do i = 2, num_intervals
-      index = FLOOR(factor*(i**power-1)+1)
-      !index = FLOOR(factor*EXP(g*i)+1-factor*EXP(g))
-      !index = FLOOR(factor*EXP(g*i)+idx-factor*EXP(g*z))
-      intervals(i-1,2) = INT(index)
-      intervals(i,1) = INT(index + 1)
+    do i = 2, wl_setup%num_windows
+      window_intervals(i-1,2) = INT(FLOOR(factor*(i**power-1)+1))
+      window_intervals(i,1) = INT(FLOOR(factor*(i**power-1)+1) + 1)
+    end do
+
+    ! Distribute MPI processes
+    window_rank_index(1,1) = 0
+    window_rank_index(wl_setup%num_windows, 2) = mpi_process - 1
+    do i = 2, wl_setup%num_windows
+      window_rank_index(i,1) = INT(FLOOR(REAL(mpi_process/wl_setup%num_windows)))*(i-1)
+      window_rank_index(i-1,2) = window_rank_index(i,1) - 1
     end do
   end subroutine divide_range
+
+  subroutine create_window_intervals(wl_setup, num_walkers, window_intervals, window_indices, &
+    mpi_index, mpi_start_idx, mpi_end_idx, mpi_bins)
+    class(wl_params), intent(in) :: wl_setup
+    integer, dimension(:,:), intent(in) :: window_intervals
+    integer, intent(in) :: num_walkers
+
+    integer, intent(out) :: mpi_start_idx, mpi_end_idx, mpi_bins, mpi_index
+    integer, dimension(:,:), intent(inout) :: window_indices
+
+    integer :: i
+
+    window_indices(1, 1) = window_intervals(1,1)
+    window_indices(1,2) = INT(window_intervals(1,2) + ABS(window_intervals(2,1)-window_intervals(2,2))*wl_setup%bin_overlap)
+    do i = 2, wl_setup%num_windows-1
+      window_indices(i, 1) = INT(window_intervals(i,1) - ABS(window_intervals(i-1,1)-window_intervals(i-1,2))*wl_setup%bin_overlap)
+      window_indices(i, 2) = INT(window_intervals(i,2) + ABS(window_intervals(i+1,1)-window_intervals(i+1,2))*wl_setup%bin_overlap)
+    end do
+    window_indices(wl_setup%num_windows, 1) = INT(window_intervals(wl_setup%num_windows,1) &
+                                    - ABS(window_intervals(wl_setup%num_windows-1,1) &
+                                    -window_intervals(wl_setup%num_windows-1,2))*wl_setup%bin_overlap)
+    window_indices(wl_setup%num_windows,2) = window_intervals(wl_setup%num_windows,2)
+
+    mpi_index = my_rank/num_walkers + 1
+    mpi_start_idx = window_indices(mpi_index, 1)
+    mpi_end_idx = window_indices(mpi_index, 2)
+    mpi_bins = mpi_end_idx - mpi_start_idx + 1
+  end subroutine create_window_intervals
+
+  subroutine create_energy_bins(setup, wl_setup, mpi_start_idx, mpi_end_idx, bin_edges, bin_energy, mpi_bin_edges)
+    class(run_params), intent(in) :: setup
+    class(wl_params), intent(in) :: wl_setup
+    integer, intent(in) :: mpi_start_idx, mpi_end_idx
+
+    real(real64), dimension(:), intent(inout) :: bin_edges, bin_energy, mpi_bin_edges
+    
+    ! Internal
+    integer :: i, j
+    real(real64) :: energy_to_ry, bin_width
+
+    ! Conversion meV/atom to Rydberg
+    energy_to_ry = setup%n_atoms/(eV_to_Ry*1000)
+    ! Create energy wl_setup%bins and set mpi wl_setup%bins
+    j = 1
+    bin_width = (wl_setup%energy_max - wl_setup%energy_min)/real(wl_setup%bins)*energy_to_ry
+    do i = 1, wl_setup%bins + 1
+      bin_edges(i) = wl_setup%energy_min*energy_to_ry + (i - 1)*bin_width
+    end do
+    do i = 1, wl_setup%bins
+      bin_energy(i) = wl_setup%energy_min*energy_to_ry + (i - 0.5)*bin_width
+    end do
+    do i = mpi_start_idx, mpi_end_idx + 1
+      mpi_bin_edges(j) = bin_edges(i)
+      j = j + 1
+    end do
+
+  end subroutine create_energy_bins
 
 end module wang_landau
