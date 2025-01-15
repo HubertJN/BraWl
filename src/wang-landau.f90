@@ -64,9 +64,10 @@ contains
     allocate(rho_of_E(setup%n_species, setup%n_species, setup%wc_range, wl_setup%bins))
     if (my_rank == 0) then
       allocate(rho_of_E_buffer(setup%n_species, setup%n_species, setup%wc_range, wl_setup%bins))
+      rho_of_E_buffer = 0.0_real64
     end if
     rho_of_E = 0.0_real64
-
+    
     ! Path to radial file and name of radial file
     radial_file = "radial_densities/rho_of_E.dat"
 
@@ -157,7 +158,7 @@ contains
         hist_reset = .False.
       end if
       call sweeps(setup, wl_setup, config, wl_setup%bins, bin_edges, mpi_start_idx, mpi_end_idx, &
-                mpi_wl_hist, wl_logdos, wl_f, mpi_index, window_intervals, radial_record, rho_of_E)
+                  mpi_wl_hist, wl_logdos, wl_f, mpi_index, window_intervals, radial_record, rho_of_E)
 
       flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
       bins_min = count(mpi_wl_hist > min_val)/REAL(mpi_bins)
