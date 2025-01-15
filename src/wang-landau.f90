@@ -35,7 +35,7 @@ contains
     ! wl variables and arrays
     integer :: bins, resets
     real(real64) :: bin_width, energy_to_ry, wl_f, wl_f_prev, tolerance, flatness_tolerance
-    real(real64) :: target_energy, min_val, flatness, acceptance, bins_buffer, bins_min, radial_min, radial_min_buffer
+    real(real64) :: target_energy, min_val, flatness, bins_buffer, bins_min, radial_min, radial_min_buffer
     real(real64), allocatable :: bin_edges(:), wl_hist(:), wl_logdos(:), bin_energy(:)
     logical :: first_reset, hist_reset, first_hist_reset, rho_saved
 
@@ -182,7 +182,7 @@ contains
     !---------!
     ! Burn in !
     !---------!
-    call wl_burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges), &
+    call burn_in(setup, config, target_energy, MINVAL(mpi_bin_edges), MAXVAL(mpi_bin_edges), &
                     num_proc, num_walkers, my_rank, mpi_index)
     print*, "Rank: ", my_rank, "Burn-in complete"
     call comms_wait()
@@ -204,8 +204,8 @@ contains
         start = mpi_wtime()
         hist_reset = .False.
       end if
-      acceptance = run_wl_sweeps(setup, wl_setup, config, temp, bins, bin_edges, mpi_start_idx, mpi_end_idx, &
-                                 mpi_wl_hist, wl_logdos, wl_f, mpi_index, intervals, radial_record, rho_of_E)
+      call sweeps(setup, wl_setup, config, temp, bins, bin_edges, mpi_start_idx, mpi_end_idx, &
+                  mpi_wl_hist, wl_logdos, wl_f, mpi_index, intervals, radial_record, rho_of_E)
 
       flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
       bins_min = count(mpi_wl_hist > min_val)/REAL(mpi_bins)
@@ -376,9 +376,9 @@ contains
     index = int(((energy - bin_edges(1))/(bin_range))*real(bins)) + 1
   end function bin_index
 
-  function run_wl_sweeps(setup, wl_setup, config, temp, bins, bin_edges, &
+  subroutine sweeps(setup, wl_setup, config, temp, bins, bin_edges, &
                          mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f, &
-                         mpi_index, intervals, radial_record, rho_of_E) result(acceptance)
+                         mpi_index, intervals, radial_record, rho_of_E)
     integer(int16), dimension(:, :, :, :) :: config
     class(run_params), intent(in) :: setup
     class(wl_params), intent(in) :: wl_setup
@@ -391,7 +391,7 @@ contains
 
     integer, dimension(4) :: rdm1, rdm2
     real(real64) :: e_swapped, e_unswapped, delta_e, beta
-    integer :: acceptance, i, ibin, jbin, iradial
+    integer :: i, ibin, jbin, iradial
     integer(int16) :: site1, site2
 
     ! Set inverse temp
@@ -400,7 +400,6 @@ contains
     ! Establish total energy before any moves
     e_unswapped = setup%full_energy(config)
     e_swapped = e_unswapped
-    acceptance = 0.0_real64
 
     do i = 1, wl_setup%mc_sweeps*setup%n_atoms
 
@@ -442,7 +441,6 @@ contains
 
         ! Accept or reject move
         if (genrand() .lt. exp((wl_logdos(ibin) - wl_logdos(jbin)))) then
-          acceptance = acceptance + 1
           e_unswapped = e_swapped
         else
           call pair_swap(config, rdm1, rdm2)
@@ -456,9 +454,9 @@ contains
       end if
     end do
 
-  end function run_wl_sweeps
+  end subroutine sweeps
 
-  subroutine wl_burn_in(setup, config, target_energy, min_e, max_e, &
+  subroutine burn_in(setup, config, target_energy, min_e, max_e, &
                         num_proc, num_walkers, my_rank, mpi_index)
     integer(int16), dimension(:, :, :, :) :: config
     class(run_params), intent(in) :: setup
@@ -528,7 +526,7 @@ contains
         end if
       end if
     end do
-  end subroutine wl_burn_in
+  end subroutine burn_in
 
   subroutine divide_range(start, finish, num_intervals, intervals)
     integer, intent(in) :: num_intervals
