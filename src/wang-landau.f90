@@ -126,7 +126,7 @@ contains
     wl_hist = 0.0_real64; wl_logdos = 0.0_real64; wl_f = wl_setup%wl_f; wl_f_prev = wl_f
     flatness = 0.0_real64; pre_sampled = .False.
     mpi_wl_hist = 0.0_real64; wl_logdos_buffer = 0.0_real64; rank_time = 0.0_real64
-    radial_record = wl_setup%radial_samples
+    radial_record = 0
     rho_saved = .False.
 
     ! Set up the lattice
@@ -162,12 +162,11 @@ contains
           start = mpi_wtime()
           pre_sampled = .True.
           mpi_wl_hist = 0.0_real64
-          radial_record = 0
         end if
       end if
 
       call sweeps(setup, wl_setup, config, wl_setup%bins, bin_edges, mpi_start_idx, mpi_end_idx, &
-                  mpi_wl_hist, wl_logdos, wl_f, mpi_index, window_intervals, radial_record, rho_of_E)
+                  mpi_wl_hist, wl_logdos, wl_f, mpi_index, window_intervals, radial_record, rho_of_E, rho_saved)
 
       flatness = minval(mpi_wl_hist)/(sum(mpi_wl_hist)/mpi_bins)
       bins_min = count(mpi_wl_hist > min_val)/REAL(mpi_bins)
@@ -279,7 +278,7 @@ contains
 
   subroutine sweeps(setup, wl_setup, config, bins, bin_edges, &
                          mpi_start_idx, mpi_end_idx, mpi_wl_hist, wl_logdos, wl_f, &
-                         mpi_index, window_intervals, radial_record, rho_of_E)
+                         mpi_index, window_intervals, radial_record, rho_of_E, rho_saved)
     integer(int16), dimension(:, :, :, :) :: config
     class(run_params), intent(in) :: setup
     class(wl_params), intent(in) :: wl_setup
@@ -289,6 +288,7 @@ contains
     real(real64), dimension(:), intent(in) :: bin_edges
     real(real64), dimension(:), intent(inout) :: mpi_wl_hist, wl_logdos
     real(real64), intent(in) :: wl_f
+    logical, intent(in) :: rho_saved
 
     integer, dimension(4) :: rdm1, rdm2
     real(real64) :: e_swapped, e_unswapped, delta_e
@@ -324,13 +324,16 @@ contains
       if (jbin > mpi_start_idx - 1 .and. jbin < mpi_end_idx + 1) then
 
         ! Calculate radial density and add to appropriate location in array
-        if (ibin > window_intervals(mpi_index,1) - 1 .and. ibin < window_intervals(mpi_index,2) + 1) then
-          iradial = ibin - window_intervals(mpi_index,1) + 1
-          if(i > MOD(radial_record(iradial, 1),wl_setup%mc_sweeps*setup%n_atoms) &
-            .and. radial_record(iradial, 2) < wl_setup%radial_samples ) then
-            radial_record(iradial, 1) = radial_record(iradial, 1) + INT(setup%n_atoms*0.05)
-            radial_record(iradial, 2) = radial_record(iradial, 2) + 1
-            rho_of_E(:,:,:,ibin) = rho_of_E(:,:,:,ibin) + radial_densities(setup, config, setup%wc_range, shells)
+        if (rho_saved .eqv. .False.) then
+          if (ibin > window_intervals(mpi_index,1) - 1 .and. ibin < window_intervals(mpi_index,2) + 1) then
+            iradial = ibin - window_intervals(mpi_index,1) + 1
+            radial_record(iradial, 1) = radial_record(iradial, 1) + 1
+            if(radial_record(iradial, 1) >= setup%n_atoms &
+              .and. radial_record(iradial, 2) < wl_setup%radial_samples) then
+              radial_record(iradial, 1) = 0
+              radial_record(iradial, 2) = radial_record(iradial, 2) + 1
+              rho_of_E(:,:,:,ibin) = rho_of_E(:,:,:,ibin) + radial_densities(setup, config, setup%wc_range, shells)
+            end if
           end if
         end if
 
