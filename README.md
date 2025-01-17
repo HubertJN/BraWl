@@ -2,7 +2,7 @@
 
 A code for performing lattice-based atomistic simulations of alloys with an internal energy given by a Bragg-Williams Hamiltonian, implementing both Monte Carlo methods (simulated annealing, transition matrix Monte Carlo, Wang-Landau sampling) and nested sampling. The code will be periodically updated so it is best to check the GitHub repository for the latest version.
 
-Copyright (C) Christopher Woodgate 2019-2024. Released under the GNU Lesser General Public License, version 3.
+Copyright (C) The Authors 2019-2025. Released under the GNU Lesser General Public License, version 3.
 
 ## Background
 
@@ -50,12 +50,10 @@ Most of the options specified in the input file are fairly self-explanatory. The
 - 02: Draw Decorellated Samples. Optionally performs simulated annealing then draws samples of the grid N Monte Carlo steps apart. Good for generating supercell configurations for use other methods. *E.g.* this recent reference where the code was used to generate training/test data for a machine-learned interatomic potential: L. Shenoy, C. D. Woodgate, J. B. Staunton, A. P. Bartók, C. S. Becquart, C. Domain, J. R. Kermode, [Phys. Rev. Mater. **8**, 033804 (2024)](https://doi.org/10.1103/PhysRevMaterials.8.033804).
 - 03: Nested sampling. Uses the nested sampling algorithm to sample the configuration space from random initial configurations, allowing to calculate the partition function at an arbitrary temperature during the post-processing step. This procedure is outlined in a recent publication: C. D. Woodgate, G. A. Marchant, L. B. Pártay, J. B. Staunton, [npj Comput. Mater. **10**, 271 (2024)](https://doi.org/10.1038/s41524-024-01445-w).
 
-## Author
-Christopher D. Woodgate
-
-## Contributors
-- Livia Bartók-Pártay
-- Hubert Naguszewski
+## Authors
+- Hubert J. Naguszewski
+- Livia B. Pártay
+- Christopher D. Woodgate
 
 ## Contributing
 Any/all contributions are welcome via pull requests. 
