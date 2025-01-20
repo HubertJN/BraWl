@@ -530,14 +530,14 @@ contains
     integer :: i
 
     window_indices(1, 1) = window_intervals(1,1)
-    window_indices(1,2) = INT(window_intervals(1,2) + ABS(window_intervals(2,1)-window_intervals(2,2))*wl_setup%bin_overlap)
+    window_indices(1,2) = INT(window_intervals(1,2) + wl_setup%bin_overlap)
     do i = 2, wl_setup%num_windows-1
-      window_indices(i, 1) = INT(window_intervals(i,1) - ABS(window_intervals(i-1,1)-window_intervals(i-1,2))*wl_setup%bin_overlap)
-      window_indices(i, 2) = INT(window_intervals(i,2) + ABS(window_intervals(i+1,1)-window_intervals(i+1,2))*wl_setup%bin_overlap)
+      window_indices(i, 1) = MAX(INT(window_intervals(i,1) - wl_setup%bin_overlap), 1)
+      window_indices(i, 2) = MIN(INT(window_intervals(i,2) + wl_setup%bin_overlap), wl_setup%bins)
     end do
     window_indices(wl_setup%num_windows, 1) = INT(window_intervals(wl_setup%num_windows,1) &
                                     - ABS(window_intervals(wl_setup%num_windows-1,1) &
-                                    -window_intervals(wl_setup%num_windows-1,2))*wl_setup%bin_overlap)
+                                    - wl_setup%bin_overlap))
     window_indices(wl_setup%num_windows,2) = window_intervals(wl_setup%num_windows,2)
 
     mpi_index = my_rank/num_walkers + 1
@@ -742,18 +742,15 @@ end subroutine dos_combine
     deallocate(mpi_bin_edges)
     deallocate(mpi_wl_hist)
 
-    window_indices(1,1) = window_intervals(1,1)
-    window_indices(1,2) = INT(window_intervals(1,2) &
-                        + ABS(window_intervals(2,1)-window_intervals(2,2))*wl_setup%bin_overlap)
+    window_indices(1, 1) = window_intervals(1,1)
+    window_indices(1,2) = INT(window_intervals(1,2) + wl_setup%bin_overlap)
     do i = 2, wl_setup%num_windows-1
-      window_indices(i,1) = INT(window_intervals(i,1) &
-                          - ABS(window_intervals(i-1,1)-window_intervals(i-1,2)) *wl_setup%bin_overlap)
-      window_indices(i,2) = INT(window_intervals(i,2) &
-                          + ABS(window_intervals(i+1,1)-window_intervals(i+1,2))*wl_setup%bin_overlap)
+      window_indices(i, 1) = MAX(INT(window_intervals(i,1) - wl_setup%bin_overlap), 1)
+      window_indices(i, 2) = MIN(INT(window_intervals(i,2) + wl_setup%bin_overlap), wl_setup%bins)
     end do
-    window_indices(wl_setup%num_windows,1) = INT(window_intervals(wl_setup%num_windows,1) &
-                                            - ABS(window_intervals(wl_setup%num_windows-1,1) &
-                                            -window_intervals(wl_setup%num_windows-1,2))*wl_setup%bin_overlap)
+    window_indices(wl_setup%num_windows, 1) = INT(window_intervals(wl_setup%num_windows,1) &
+                                    - ABS(window_intervals(wl_setup%num_windows-1,1) &
+                                    - wl_setup%bin_overlap))
     window_indices(wl_setup%num_windows,2) = window_intervals(wl_setup%num_windows,2)
 
     mpi_index = my_rank/num_walkers + 1
